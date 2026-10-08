@@ -24,18 +24,15 @@ Prototipo de referencia (diseño y comportamiento aprobados por el dueño): http
 - Animaciones "Ver cómo se juega" en `src/scenes.js` (Animated + react-native-svg). Más adelante pueden sustituirse por archivos Rive/Lottie.
 
 ## Estado de los archivos
-Escritos (sin ejecutar todavía; revisar y corregir al correr la app):
-- `src/data.js` — datos de ejemplo, fechas, estado inicial `fresh()`, derivados por rol.
-- `src/theme.js`, `src/store.js`, `src/ui.js`, `src/ai.js`, `src/scenes.js`, `src/parts.js`, `src/sheets.js`
-- `src/screens/Hoy.js`, `src/screens/Jugar.js`, `src/screens/Agenda.js`
+Fase 1 completa en código. Verificado: compila para Android e iOS (`npx expo export`) y se recorrieron todas las pestañas y ambos roles en un navegador de prueba sin errores. **Aún no probado en un teléfono real con Expo Go.**
+- `App.js`, `index.js`, `app.json`, `package.json` (Expo SDK 57; versiones tomadas de `node_modules/expo/bundledNativeModules.json`)
+- `src/data.js`, `theme.js`, `store.js`, `ui.js`, `ai.js`, `scenes.js`, `parts.js`, `sheets.js`
+- `src/screens/`: `Hoy`, `Jugar`, `Agenda`, `Cocina`, `Familia`, `Casa`
 
-Pendientes:
-- `src/screens/Cocina.js` — pestañas Menú / Compras / Recetas (la cuidadora solo ve "Menú de hoy" y Recetas). Botón para armar la lista de compras desde el menú, agrupada por pasillo (`aisleOf`). Importar receta desde enlace (en fase 1 crea un borrador). Usar `RecipeSheet` y `UploadRecipeSheet`.
-- `src/screens/Familia.js` — bitácora del niño activo con nivel informativo/atención/urgente, ficha de emergencia, documentos compartidos, tabla "Qué ve cada quien" y red de cuidado (solo papás). La cuidadora no ve entradas con `parentsOnly`.
-- `src/screens/Casa.js` (solo papás) — cámaras (`LiveCamSheet`, avisos a la bitácora como `parentsOnly`), documentos con interruptor "compartir con cuidadores" y subir documento, gastos compartidos con balance y modo coparentalidad (custodia semanal), avisos de llegada por cuidador, botón de modo pizarra.
-- `App.js` — cargar fuentes, `SafeAreaProvider` > `StoreProvider` > `UIProvider` > Shell: encabezado (marca "Tribbu", selector de rol, niños; la cuidadora solo ve a Sofi y un aviso de vista restringida), pantalla activa en un `ScrollView` (padding 16, gap 16), barra de pestañas inferior con `NavIcon` (la cuidadora no tiene "Casa") y botón flotante "Pregúntale a Tribbu" que abre `ChatSheet`.
-- `app.json` con nombre "Tribbu", slug "tribbu", `userInterfaceStyle: "automatic"`.
-- Un botón discreto para reiniciar los datos de ejemplo (`reset` del store).
+Notas:
+- "Subir documento" en Casa usa el selector de fotos (`expo-image-picker`). Para PDFs en fase 2 añadir `expo-document-picker`.
+- Los 2 avisos de `expo-doctor` en el entorno de la nube eran de red bloqueada, no del proyecto; correrlo en la computadora del dueño.
+- Pendiente fase 2: sin cambios (Supabase, `expo-calendar`).
 
 ## Permisos por rol (deben respetarse en fase 1 y en las reglas de Supabase en fase 2)
 | Sección | Papás | Cuidadores |

@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Tribbu",
+    "slug": "tribbu",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.tribbu.familia"
+    },
+    "android": {
+      "package": "app.tribbu.familia"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Tribbu usa tus fotos para adjuntar imágenes a recetas y documentos."
+        }
+      ]
+    ]
+  }
+}
