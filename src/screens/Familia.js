@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
-import { KIDS, PARENTS, PEOPLE, isCG, kidKey, me, now } from '../data';
+import { KIDS, isCG, isCloud, kidKey, letterOf, me, nameOf, now, PARENTS, PEOPLE } from '../data';
+import { AccountCard, FamilyAdmin } from './FamiliaAdmin';
 import { useStore } from '../store';
 import { F, useTheme } from '../theme';
 import { Avatar, Between, Btn, Card, Field, Item, Pill, Row, Seg, T, useUI } from '../ui';
@@ -61,9 +62,9 @@ function Logbook() {
         {feed.length ? feed.map((x, i) => (
           <Item key={x.id} first={!i} style={x.lvl === 'urgente' ? { backgroundColor: c.berryBg, marginHorizontal: -14, paddingHorizontal: 14 } : null}>
             <Row style={{ alignItems: 'flex-start' }}>
-              <Avatar letter={PEOPLE[x.who][1]} />
+              <Avatar letter={letterOf(x.who)} />
               <View style={{ flex: 1, gap: 3 }}>
-                <Between><T v="bold">{PEOPLE[x.who][0]}</T><T v="small">{x.t}</T></Between>
+                <Between><T v="bold">{nameOf(x.who)}</T><T v="small">{x.t}</T></Between>
                 <Row gap={4} wrap>
                   <Pill tone="sky">{x.kind}</Pill>
                   {x.lvl === 'atencion' ? <Pill tone="amber">Atención</Pill> : null}
@@ -150,7 +151,8 @@ export default function Familia() {
       <Logbook />
       <Emergency />
       <SharedDocs />
-      {isCG(S) ? null : <><Permissions /><Network /></>}
+      {isCG(S) ? null : <><Permissions />{isCloud(S) ? <FamilyAdmin /> : <Network />}</>}
+      <AccountCard />
     </>
   );
 }

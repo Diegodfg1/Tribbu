@@ -6,8 +6,8 @@ import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  ACTS, KIDS, MATS, MENU, PEOPLE, SKILLS, SRC, aisleOf, allRecipes, dateLong, dayEvents, dk, evKey, fromKey,
-  inShift, isCG, kidKey, me, now, today, todayIdx,
+  ACTS, KIDS, MATS, MEMBERS, MENU, SKILLS, SRC, aisleOf, allRecipes, dateLong, dayEvents, dk, evKey, fromKey,
+  inShift, isCG, isCloud, kidKey, me, nameOf, now, today, todayIdx,
 } from './data';
 import { DEMOS } from './scenes';
 import { useStore } from './store';
@@ -169,13 +169,13 @@ export function EventSheet({ k }) {
   };
   return (
     <>
-      <SheetHead label={`${e.tag} · ${KIDS[e.kid].name}`} title={e.t} sub={`${dateLong(fromKey(d))} · ${e.time} a ${e.end}`} />
+      <SheetHead label={`${e.tag} · ${KIDS[e.kid] ? KIDS[e.kid].name : ''}`} title={e.t} sub={`${dateLong(fromKey(d))} · ${e.time} a ${e.end}`} />
       <T v="label">Conversación del evento</T>
       {ms.length ? ms.map((m, i) => {
         const mine = m.who === me(S);
         return (
           <View key={i} style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: '90%', backgroundColor: mine ? c.skyBg : c.paper2, borderRadius: 14, paddingHorizontal: 11, paddingVertical: 8 }}>
-            <T v="small" style={{ fontFamily: F.bold, color: c.ink }}>{`${PEOPLE[m.who][0]} · ${m.t}`}</T>
+            <T v="small" style={{ fontFamily: F.bold, color: c.ink }}>{`${nameOf(m.who)} · ${m.t}`}</T>
             <T>{m.txt}</T>
           </View>
         );
@@ -201,37 +201,43 @@ export function CalendarsSheet() {
         <Avatar letter="T" bg={c.sun} fg={c.sunInk} />
         <View style={{ flex: 1 }}><T v="bold">Tribbu familiar</T><T v="small" color={c.ink}>Calendario propio de la familia. Cada cuidador solo ve lo de su turno.</T></View>
       </Card>
-      <T v="label">Vincular otras cuentas (opcional)</T>
-      {['google', 'outlook', 'icloud'].map((k, idx) => {
-        const s = S.cal[k];
-        return (
-          <View key={k} style={{ gap: 8, paddingTop: idx ? 10 : 0, borderTopWidth: idx ? 1 : 0, borderTopColor: c.line }}>
-            <Between>
-              <Row style={{ flex: 1 }}>
-                <Avatar letter={SRC[k].l} bg={c[SRC[k].color]} fg={c.paper} />
-                <View style={{ flex: 1 }}><T v="bold">{SRC[k].n}</T><T v="small">{s.on ? 'Conectado · solo lectura' : 'No conectado'}</T></View>
-              </Row>
-              <Btn sm kind={s.on ? 'ghost' : 'ink'} onPress={() => { update((d) => { d.cal[k].on = !d.cal[k].on; }); toast(s.on ? 'Cuenta desconectada' : `${SRC[k].n} conectado`); }}>{s.on ? 'Desconectar' : 'Conectar'}</Btn>
-            </Between>
-            {s.on ? (
-              <Between>
-                <T v="small">El otro papá ve</T>
-                <Row gap={6}>
-                  <Chip on={s.mode === 'ocupado'} onPress={() => update((d) => { d.cal[k].mode = 'ocupado'; })}>Solo «Ocupado»</Chip>
-                  <Chip on={s.mode === 'detalle'} onPress={() => update((d) => { d.cal[k].mode = 'detalle'; })}>Con detalles</Chip>
-                </Row>
-              </Between>
-            ) : null}
+      {isCloud(S) ? (
+        <T v="small">Pronto podrás vincular tu calendario de Google, Outlook o iCloud (solo lectura). Por ahora los eventos se agregan en Tribbu y cada cuidador ve únicamente los de su turno.</T>
+      ) : (
+        <>
+          <T v="label">Vincular otras cuentas (opcional)</T>
+          {['google', 'outlook', 'icloud'].map((k, idx) => {
+            const s = S.cal[k];
+            return (
+              <View key={k} style={{ gap: 8, paddingTop: idx ? 10 : 0, borderTopWidth: idx ? 1 : 0, borderTopColor: c.line }}>
+                <Between>
+                  <Row style={{ flex: 1 }}>
+                    <Avatar letter={SRC[k].l} bg={c[SRC[k].color]} fg={c.paper} />
+                    <View style={{ flex: 1 }}><T v="bold">{SRC[k].n}</T><T v="small">{s.on ? 'Conectado · solo lectura' : 'No conectado'}</T></View>
+                  </Row>
+                  <Btn sm kind={s.on ? 'ghost' : 'ink'} onPress={() => { update((d) => { d.cal[k].on = !d.cal[k].on; }); toast(s.on ? 'Cuenta desconectada' : `${SRC[k].n} conectado`); }}>{s.on ? 'Desconectar' : 'Conectar'}</Btn>
+                </Between>
+                {s.on ? (
+                  <Between>
+                    <T v="small">El otro papá ve</T>
+                    <Row gap={6}>
+                      <Chip on={s.mode === 'ocupado'} onPress={() => update((d) => { d.cal[k].mode = 'ocupado'; })}>Solo «Ocupado»</Chip>
+                      <Chip on={s.mode === 'detalle'} onPress={() => update((d) => { d.cal[k].mode = 'detalle'; })}>Con detalles</Chip>
+                    </Row>
+                  </Between>
+                ) : null}
+              </View>
+            );
+          })}
+          <T v="small">Los cuidadores nunca ven tus calendarios vinculados. En la fase 2 se leen los calendarios reales de tu teléfono.</T>
+          <T v="label">Llevar Tribbu a tu calendario</T>
+          <T>Suscríbete desde Google, Outlook o Apple y los eventos familiares aparecerán ahí, sin compartir tu calendario de trabajo.</T>
+          <View style={{ backgroundColor: c.paper2, borderWidth: 1, borderStyle: 'dashed', borderColor: c.line, borderRadius: 10, padding: 10 }}>
+            <T v="small" color={c.ink} selectable>{link}</T>
           </View>
-        );
-      })}
-      <T v="small">Los cuidadores nunca ven tus calendarios vinculados. En la fase 2 se leen los calendarios reales de tu teléfono.</T>
-      <T v="label">Llevar Tribbu a tu calendario</T>
-      <T>Suscríbete desde Google, Outlook o Apple y los eventos familiares aparecerán ahí, sin compartir tu calendario de trabajo.</T>
-      <View style={{ backgroundColor: c.paper2, borderWidth: 1, borderStyle: 'dashed', borderColor: c.line, borderRadius: 10, padding: 10 }}>
-        <T v="small" color={c.ink} selectable>{link}</T>
-      </View>
-      <Row><Btn sm onPress={async () => { await Clipboard.setStringAsync(link); toast('Enlace copiado'); }}>Copiar enlace</Btn><T v="small">Enlace de ejemplo</T></Row>
+          <Row><Btn sm onPress={async () => { await Clipboard.setStringAsync(link); toast('Enlace copiado'); }}>Copiar enlace</Btn><T v="small">Enlace de ejemplo</T></Row>
+        </>
+      )}
     </>
   );
 }
@@ -264,7 +270,7 @@ export function RecipeSheet({ id }) {
 
 export function UploadRecipeSheet() {
   const c = useTheme();
-  const { update } = useStore();
+  const { S, update } = useStore();
   const { closeSheet, toast } = useUI();
   const [f, setF] = useState({ t: '', min: '20', age: '1+', ing: '', steps: '', alg: '', img: null });
   const set = (k) => (v) => setF((x) => ({ ...x, [k]: v }));
@@ -286,10 +292,12 @@ export function UploadRecipeSheet() {
       <Field multiline placeholder="Ingredientes, uno por línea" value={f.ing} onChangeText={set('ing')} />
       <Field multiline placeholder="Pasos, uno por línea" value={f.steps} onChangeText={set('steps')} />
       <Field placeholder="Alérgenos separados por coma (opcional)" value={f.alg} onChangeText={set('alg')} />
-      <Row>
-        <Btn kind="ghost" sm onPress={pick}>{f.img ? 'Cambiar foto' : 'Agregar foto'}</Btn>
-        {f.img ? <Image source={{ uri: f.img }} style={{ width: 48, height: 48, borderRadius: 10 }} /> : null}
-      </Row>
+      {isCloud(S) ? <T v="small">Las fotos de recetas se sincronizarán en una versión posterior.</T> : (
+        <Row>
+          <Btn kind="ghost" sm onPress={pick}>{f.img ? 'Cambiar foto' : 'Agregar foto'}</Btn>
+          {f.img ? <Image source={{ uri: f.img }} style={{ width: 48, height: 48, borderRadius: 10 }} /> : null}
+        </Row>
+      )}
       <Btn kind="sun" onPress={save}>Publicar en la familia</Btn>
     </>
   );
@@ -381,10 +389,15 @@ export function BoardScreen() {
     <View style={{ flex: 1, backgroundColor: c.paper, paddingTop: insets.top + 20, paddingHorizontal: 22, paddingBottom: insets.bottom + 20, gap: 16 }}>
       <Between><T v="label">Modo pizarra · tablet de la cocina</T><Btn sm kind="ghost" onPress={closeFull}>Salir</Btn></Between>
       <T v="h1">{dateLong(today)}</T>
-      <Blk label="Quién cuida"><Big>Sofi · Abuela Carmen, 14 a 19 h</Big><Big>Mateo · Abuelo Jorge, 16 a 20 h</Big></Blk>
-      <Blk label="Hoy">{all.map((e, i) => <Big key={i}>{`${e.time}  ${e.t}`}</Big>)}</Blk>
+      <Blk label="Quién cuida">
+        {Object.keys(KIDS).map((k) => {
+          const g = MEMBERS.find((x) => x.role === 'caregiver' && x.kid === k);
+          return <Big key={k}>{g ? `${KIDS[k].name} · ${g.name}, ${g.from.replace(/^0/, '')} a ${g.to.replace(/^0/, '')} h` : `${KIDS[k].name} · en casa`}</Big>;
+        })}
+      </Blk>
+      <Blk label="Hoy">{all.length ? all.map((e, i) => <Big key={i}>{`${e.time}  ${e.t}`}</Big>) : <Big>Sin eventos</Big>}</Blk>
       <Blk label="Comida"><Big>{r ? r.t : 'Lentejas con arroz'}</Big></Blk>
-      <Blk label="Puntos de la semana"><Big>{`Sofi ${S.pts.sofi} · Mateo ${S.pts.mateo}`}</Big></Blk>
+      <Blk label="Puntos de la semana"><Big>{Object.keys(KIDS).map((k) => `${KIDS[k].name} ${S.pts[k] || 0}`).join(' · ')}</Big></Blk>
       <T v="small">Pensado para una tablet fija en la pared. Muestra solo lo que cualquier persona en casa puede ver.</T>
     </View>
   );

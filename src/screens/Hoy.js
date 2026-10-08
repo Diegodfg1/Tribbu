@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { ACTS, ARRIVALS, KIDS, PEOPLE, SHIFT, dateLong, dayEvents, dk, evKey, inShift, isCG, kidKey, today } from '../data';
+import { ACTS, ARRIVALS, KIDS, SHIFT, caregiverOf, dateLong, dayEvents, dk, evKey, inShift, isCG, kidKey, nameOf, today } from '../data';
 import { ActCard, PinIcon, SunMark, TaskRow } from '../parts';
 import { DEMOS } from '../scenes';
 import { ActivitySheet, BoardScreen, EventSheet, LogSheet } from '../sheets';
@@ -63,6 +63,7 @@ export default function Hoy() {
   const [busy, setBusy] = useState(false);
   const kk = kidKey(S);
   const k = KIDS[kk];
+  const care = caregiverOf(kk);
 
   if (isCG(S)) {
     const mine = S.tasks.filter((t) => t.who === SHIFT.who);
@@ -73,7 +74,7 @@ export default function Hoy() {
           <SunMark />
           <T v="label" color={c.sunInk}>Tu turno de hoy</T>
           <T v="h2" color={c.sunInk}>{`Cuidas a ${k.name} de ${SHIFT.from} a ${SHIFT.to}`}</T>
-          <T color={c.sunInk}>La recoges en el Kínder Montessori a las 14:00.</T>
+          <T color={c.sunInk}>Aquí tienes lo necesario para tu turno.</T>
         </View>
         <Card>
           <T v="h3">Lo que necesitas saber</T>
@@ -108,13 +109,15 @@ export default function Hoy() {
       <View style={{ backgroundColor: c.sun, borderRadius: 24, padding: 16, gap: 8, overflow: 'hidden' }}>
         <SunMark />
         <T v="label" color={c.sunInk}>{`Hoy cuida a ${k.name}`}</T>
-        <Row>
-          <Avatar letter={kk === 'sofi' ? 'C' : 'J'} bg={c.paper} fg={c.ink} size={38} />
-          <View style={{ flex: 1 }}>
-            <T v="bold" color={c.sunInk}>{kk === 'sofi' ? 'Abuela Carmen' : 'Abuelo Jorge'}</T>
-            <T color={c.sunInk}>{`${kk === 'sofi' ? '14:00 a 19:00' : '16:00 a 20:00'} · solo ve lo de su turno`}</T>
-          </View>
-        </Row>
+        {care ? (
+          <Row>
+            <Avatar letter={(care.name[0] || '?').toUpperCase()} bg={c.paper} fg={c.ink} size={38} />
+            <View style={{ flex: 1 }}>
+              <T v="bold" color={c.sunInk}>{care.name}</T>
+              <T color={c.sunInk}>{`${care.from} a ${care.to} · solo ve lo de su turno`}</T>
+            </View>
+          </Row>
+        ) : <T color={c.sunInk}>{`Todavía no hay un cuidador asignado a ${k.name}. Invítalo desde Familia.`}</T>}
       </View>
       {arr.length ? (
         <Card>
@@ -122,7 +125,7 @@ export default function Hoy() {
           {arr.map((a, i) => (
             <Row key={i}>
               <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: c.leafBg, alignItems: 'center', justifyContent: 'center' }}><PinIcon /></View>
-              <T style={{ flex: 1 }}>{`${PEOPLE[a.who][0]} llegó a ${a.place}`}</T>
+              <T style={{ flex: 1 }}>{`${nameOf(a.who)} llegó a ${a.place}`}</T>
               <T v="num" style={{ fontSize: 14 }}>{a.t}</T>
             </Row>
           ))}

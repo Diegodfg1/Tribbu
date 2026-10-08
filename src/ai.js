@@ -2,7 +2,7 @@
 // FASE 1 (gratis): respuestas de ejemplo generadas en el teléfono, sin internet ni costo.
 // FASE 3: askTribbu() llamará a una función segura en Supabase que usa la API de Claude.
 //   La llave de la API NUNCA va dentro de la app; vive en el servidor.
-import { ACTS, KIDS, MATS, PEOPLE, SHIFT, isCG, kidKey } from './data';
+import { ACTS, KIDS, MATS, SHIFT, isCG, kidKey, nameOf } from './data';
 
 export const AI_LIVE = false; // cambiará a true en la fase 3
 
@@ -10,7 +10,7 @@ export function buildContext(S) {
   const k = KIDS[kidKey(S)];
   const base = 'Eres Tribbu, asistente de crianza para familias en México. Respondes en español mexicano, cálido y práctico, en máximo 120 palabras, con pasos concretos. Priorizas actividades sin pantallas con materiales de casa. No das diagnósticos ni dosis de medicamentos; ante síntomas de alarma recomiendas llamar al pediatra o a emergencias.';
   if (isCG(S)) {
-    return `${base}\nQuien pregunta es la Abuela Carmen, cuidadora de ${k.name} (${k.age} años) hoy de ${SHIFT.from} a ${SHIFT.to}. Alergia: ${k.allergy}. Rutina: ${k.routine.map((r) => r.join(' ')).join('; ')}. Materiales: ${S.have.map((m) => MATS[m]).join(', ')}. No compartes información privada de los papás.`;
+    return `${base}\nQuien pregunta es ${nameOf(SHIFT.who)}, cuidador/a de ${k.name} (${k.age} años) hoy de ${SHIFT.from} a ${SHIFT.to}. Alergia: ${k.allergy}. Rutina: ${k.routine.map((r) => r.join(' ')).join('; ')}. Materiales: ${S.have.map((m) => MATS[m]).join(', ')}. No compartes información privada de los papás.`;
   }
   return `${base}\nNiño: ${k.name}, ${k.age} años, alergia: ${k.allergy}. Materiales disponibles: ${S.have.map((m) => MATS[m]).join(', ')}. Últimos registros: ${S.feed.filter((x) => x.kid === kidKey(S)).slice(0, 3).map((x) => `${x.kind}: ${x.txt}`).join(' | ')}.`;
 }
@@ -39,7 +39,7 @@ export async function summarizeDay(S) {
   const att = S.feed.filter((x) => x.lvl !== 'info' && !x.parentsOnly);
   const lines = Object.keys(KIDS).map((kk) => {
     const items = S.feed.filter((x) => x.kid === kk);
-    return `${KIDS[kk].name}: ${items.length ? items.map((x) => `${x.kind.toLowerCase()} (${x.t}, ${PEOPLE[x.who][0]})`).join(', ') : 'sin registros'}.`;
+    return `${KIDS[kk].name}: ${items.length ? items.map((x) => `${x.kind.toLowerCase()} (${x.t}, ${nameOf(x.who)})`).join(', ') : 'sin registros'}.`;
   });
   return (att.length ? `Para atender: ${att.map((x) => `${KIDS[x.kid].name}: ${x.txt}`).join(' ')}\n\n` : '') + lines.join('\n') + TAG;
 }

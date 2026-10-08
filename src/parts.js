@@ -2,7 +2,7 @@
 import React from 'react';
 import { Pressable, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
-import { KIDS, MATS, PEOPLE, SKILLS, kidKey } from './data';
+import { KIDS, MATS, SKILLS, kidKey, nameOf } from './data';
 import { DEMOS } from './scenes';
 import { useStore } from './store';
 import { useTheme } from './theme';
@@ -56,7 +56,7 @@ export function TaskRow({ t, first }) {
     <View style={{ paddingVertical: 9, borderTopWidth: first ? 0 : 1, borderTopColor: c.line }}>
       <Check on={t.done} label={t.t} onPress={() => update((d) => { const x = d.tasks.find((y) => y.id === t.id); x.done = !x.done; })}>
         <T style={t.done ? { textDecorationLine: 'line-through', color: c.inkSoft } : null}>{t.t}</T>
-        <View style={{ marginTop: 3 }}><Pill>{PEOPLE[t.who][0]}</Pill></View>
+        <View style={{ marginTop: 3 }}><Pill>{nameOf(t.who)}</Pill></View>
       </Check>
     </View>
   );

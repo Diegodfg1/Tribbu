@@ -14,14 +14,25 @@ export const KIDS = {
   },
 };
 
+// [nombre completo, inicial, nombre corto]
 export const PEOPLE = {
-  yo: ['Tú (mamá)', 'T'], papa: ['Papá', 'P'], carmen: ['Abuela Carmen', 'C'],
-  jorge: ['Abuelo Jorge', 'J'], luis: ['Tío Luis', 'L'], ana: ['Ana (hermana)', 'A'],
+  yo: ['Tú (mamá)', 'T', 'mamá'], papa: ['Papá', 'P', 'papá'], carmen: ['Abuela Carmen', 'C', 'Abuela Carmen'],
+  jorge: ['Abuelo Jorge', 'J', 'Abuelo Jorge'], luis: ['Tío Luis', 'L', 'Tío Luis'], ana: ['Ana (hermana)', 'A', 'Ana'],
 };
 export const PARENTS = ['yo', 'papa'];
+export const nameOf = (k) => (PEOPLE[k] ? PEOPLE[k][0] : 'Alguien');
+export const letterOf = (k) => (PEOPLE[k] ? PEOPLE[k][1] : '?');
+export const shortOf = (k) => (PEOPLE[k] ? PEOPLE[k][2] : 'alguien');
 
 // Turno de la cuidadora que se usa en la vista "Abuela Carmen".
 export const SHIFT = { who: 'carmen', kid: 'sofi', from: '14:00', to: '19:00' };
+
+// Personas de la familia con su rol. En la demostración son de ejemplo; con cuenta real vienen de Supabase.
+export const MEMBERS = [
+  { key: 'carmen', name: 'Abuela Carmen', role: 'caregiver', kid: 'sofi', from: '14:00', to: '19:00' },
+  { key: 'jorge', name: 'Abuelo Jorge', role: 'caregiver', kid: 'mateo', from: '16:00', to: '20:00' },
+];
+export const caregiverOf = (kidK) => MEMBERS.find((m) => m.role === 'caregiver' && m.kid === kidK);
 
 export const MATS = {
   calcetines: 'Calcetines', cucharas: 'Cucharas', ollas: 'Ollas', almohadas: 'Almohadas', cobija: 'Cobija',
@@ -77,6 +88,10 @@ export const CHORES = {
   sofi: [['Recoger juguetes', 5], ['Lavarse los dientes sin recordar', 3], ['Ayudar a poner la mesa', 5], ['Dormir en su cama', 5]],
   mateo: [['Hacer la tarea solo', 5], ['Poner la mesa', 5], ['Bañarse sin repelar', 3], ['Leer 15 minutos', 5]],
 };
+// Hitos y quehaceres: hay listas de ejemplo para Sofi y Mateo; para cualquier otro niño se usan según su edad.
+const ageList = (kk) => (KIDS[kk] && KIDS[kk].age <= 5 ? 'sofi' : 'mateo');
+export const milestonesOf = (kk) => MILESTONES[kk] || MILESTONES[ageList(kk)].map(([id, t, a]) => [`${kk}-${id}`, t, a]);
+export const choresOf = (kk) => CHORES[kk] || CHORES[ageList(kk)];
 export const REWARDS = [['Cuento extra', 10], ['Elegir la cena del viernes', 20], ['Parque con papá el sábado', 30]];
 
 export const CAMS = [
@@ -185,10 +200,46 @@ export function fresh() {
   };
 }
 
+// ---------- Datos de ejemplo vs. familia real ----------
+// Las pantallas leen KIDS, PEOPLE, SHIFT, MEMBERS… directamente. Aquí se cambian "en su lugar" entre la
+// demostración y los datos de la familia que inició sesión.
+const clone = (x) => JSON.parse(JSON.stringify(x));
+const setObj = (t, src) => { Object.keys(t).forEach((k) => { delete t[k]; }); Object.assign(t, src); };
+const setArr = (t, src) => { t.splice(0, t.length, ...src); };
+const DEMO = {
+  KIDS: clone(KIDS), PEOPLE: clone(PEOPLE), PARENTS: [...PARENTS], SHIFT: { ...SHIFT }, MEMBERS: clone(MEMBERS),
+  BASE_EVENTS: clone(BASE_EVENTS), EXT_EVENTS: clone(EXT_EVENTS), ARRIVALS: clone(ARRIVALS), CAMS: clone(CAMS), CAM_EVENTS: clone(CAM_EVENTS),
+};
+export function setDemoWorld() {
+  setObj(KIDS, clone(DEMO.KIDS)); setObj(PEOPLE, clone(DEMO.PEOPLE)); setArr(PARENTS, DEMO.PARENTS); setObj(SHIFT, { ...DEMO.SHIFT });
+  setArr(MEMBERS, clone(DEMO.MEMBERS)); setArr(BASE_EVENTS, clone(DEMO.BASE_EVENTS)); setArr(EXT_EVENTS, clone(DEMO.EXT_EVENTS));
+  setArr(ARRIVALS, clone(DEMO.ARRIVALS)); setArr(CAMS, clone(DEMO.CAMS)); setArr(CAM_EVENTS, clone(DEMO.CAM_EVENTS));
+}
+// kids: filas de la tabla kids [{key, data}]; members: filas de members; meKey: person_key de quien inició sesión.
+export function setFamilyWorld({ kids, members, meKey }) {
+  const k = {};
+  kids.forEach((r) => {
+    k[r.key] = { allergy: 'Ninguna conocida', blood: 'Sin registrar', ped: 'Sin registrar', ins: 'Sin registrar', routine: [], age: 0, ...r.data };
+  });
+  setObj(KIDS, k);
+  const people = {};
+  members.forEach((m) => { people[m.person_key] = [m.display_name, (m.display_name[0] || '?').toUpperCase(), m.display_name]; });
+  setObj(PEOPLE, people);
+  setArr(PARENTS, members.filter((m) => m.role === 'parent').map((m) => m.person_key));
+  setArr(MEMBERS, members.map((m) => ({ key: m.person_key, name: m.display_name, role: m.role, kid: m.kid_key, from: m.shift_from, to: m.shift_to })));
+  const mine = members.find((m) => m.person_key === meKey);
+  const cg = mine && mine.role === 'caregiver' ? mine : members.find((m) => m.role === 'caregiver');
+  setObj(SHIFT, cg
+    ? { who: cg.person_key, kid: cg.kid_key, from: cg.shift_from, to: cg.shift_to }
+    : { who: '', kid: Object.keys(k)[0] || '', from: '00:00', to: '23:59' });
+  [BASE_EVENTS, EXT_EVENTS, ARRIVALS, CAMS, CAM_EVENTS].forEach((a) => setArr(a, []));
+}
+
 // ---------- Derivados según el rol ----------
 export const isCG = (S) => S.role === 'cuidador';
 export const kidKey = (S) => (isCG(S) ? SHIFT.kid : S.kid);
-export const me = (S) => (isCG(S) ? 'carmen' : 'yo');
+export const isCloud = (S) => !!S.cloud;
+export const me = (S) => S.me || (isCG(S) ? 'carmen' : 'yo');
 
 export function dayEvents(S, d) {
   const fam = [...BASE_EVENTS.filter((e) => e.d === d), ...S.myevents.filter((e) => e.d === d)]

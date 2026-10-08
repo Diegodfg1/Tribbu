@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, View } from 'react-native';
-import { ACTS, CHORES, KIDS, MATS, MILESTONES, REWARDS, SKILLS, isCG, kidKey, me, now } from '../data';
+import { ACTS, KIDS, MATS, REWARDS, SKILLS, choresOf, isCG, kidKey, me, milestonesOf, now } from '../data';
 import { ActCard } from '../parts';
 import { ActivitySheet } from '../sheets';
 import { useStore } from '../store';
@@ -43,7 +43,7 @@ function Points() {
   const { toast } = useUI();
   const kk = kidKey(S);
   const k = KIDS[kk];
-  const p = S.pts[kk];
+  const p = S.pts[kk] || 0;
   return (
     <>
       <Card style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -55,11 +55,11 @@ function Points() {
       </Card>
       <Card>
         <T v="h3">Quehaceres</T>
-        {CHORES[kk].map(([n, v], i) => (
+        {choresOf(kk).map(([n, v], i) => (
           <Between key={n} style={{ paddingVertical: 6, borderTopWidth: i ? 1 : 0, borderTopColor: c.line }}>
             <T style={{ flex: 1 }}>{n}</T>
             <Btn sm kind="sun" onPress={() => {
-              update((d) => { d.pts[kk] += v; d.feed.unshift({ id: Date.now(), who: me(S), kid: kk, kind: 'Puntos', txt: `+${v} por «${n}».`, t: now(), lvl: 'info' }); });
+              update((d) => { d.pts[kk] = (d.pts[kk] || 0) + v; d.feed.unshift({ id: Date.now(), who: me(S), kid: kk, kind: 'Puntos', txt: `+${v} por «${n}».`, t: now(), lvl: 'info' }); });
               toast(`+${v} puntos para ${k.name}`);
             }}>{`+${v}`}</Btn>
           </Between>
@@ -87,7 +87,7 @@ function Milestones() {
   const { S, update } = useStore();
   const { openSheet } = useUI();
   const kk = kidKey(S);
-  const ms = MILESTONES[kk];
+  const ms = milestonesOf(kk);
   const done = ms.filter((m) => S.mile[m[0]]).length;
   return (
     <>

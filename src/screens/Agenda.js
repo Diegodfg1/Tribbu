@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import {
-  KIDS, PEOPLE, SHIFT, SRC, addD, dayEvents, dayLong, dayShort, dk, evKey, fromKey, inShift, isCG, mins, overlaps, today,
+  KIDS, MEMBERS, PEOPLE, SHIFT, SRC, addD, dayEvents, dayLong, dayShort, dk, evKey, fromKey, inShift, isCG, isCloud, mins, nameOf, overlaps, today,
 } from '../data';
 import { TaskRow } from '../parts';
 import { CalendarsSheet, EventSheet } from '../sheets';
@@ -46,8 +46,10 @@ function EventRow({ e, ext, first, dayLbl }) {
           <View style={{ backgroundColor: c.amberBg, borderRadius: 10, padding: 8, gap: 6, marginTop: 4 }}>
             <T v="small" color={c.ink}>{`Choca con «${clash.t}» (${SRC[clash.src].n}).`}</T>
             <Btn sm style={{ alignSelf: 'flex-start' }} onPress={() => {
-              update((d) => { d.tasks.unshift({ id: Date.now(), t: `Cubrir: ${e.t} (${dayLbl}, ${e.time})`, who: 'carmen', done: false }); });
-              toast('Le pedimos apoyo a Abuela Carmen');
+              const g = MEMBERS.find((x) => x.role === 'caregiver');
+              if (!g) { toast('Primero invita a un cuidador desde Familia'); return; }
+              update((d) => { d.tasks.unshift({ id: Date.now(), t: `Cubrir: ${e.t} (${dayLbl}, ${e.time})`, who: g.key, done: false }); });
+              toast(`Le pedimos apoyo a ${g.name}`);
             }}>Pedir apoyo a la red</Btn>
           </View>
         ) : null}
@@ -62,13 +64,17 @@ function ParentsAgenda() {
   const { openSheet, toast } = useUI();
   const [sel, setSel] = useState(dk(today));
   const [form, setForm] = useState({ t: '', d: dk(today), time: '17:00', kid: S.kid });
-  const [task, setTask] = useState({ t: '', who: 'carmen' });
+  const [task, setTask] = useState({ t: '', who: (MEMBERS.find((x) => x.role === 'caregiver') || MEMBERS[0] || { key: '' }).key });
   const days = [0, 1, 2, 3, 4, 5, 6].map(addD);
   const { all, ext } = dayEvents(S, sel);
   const dayLbl = dayLong(fromKey(sel));
   const linked = Object.keys(S.cal).filter((k) => S.cal[k].on).length;
-  const shifts = [['Abuela Carmen · Sofi', 14, 19, c.sun], ['Abuelo Jorge · Mateo', 16, 20, c.leafBg], ['Tú', 19, 22, c.skyBg]];
-  const pos = (h) => ((h - 8) / 14) * 100;
+  const tones = [c.sun, c.leafBg, c.berryBg];
+  const hr = (t) => mins(t) / 60;
+  const shifts = MEMBERS.filter((m) => m.role === 'caregiver' && KIDS[m.kid])
+    .map((m, i) => [`${m.name} · ${KIDS[m.kid].name}`, hr(m.from), hr(m.to), tones[i % 3]]);
+  if (!isCloud(S)) shifts.push(['Tú', 19, 22, c.skyBg]);
+  const pos = (h) => Math.max(0, Math.min(100, ((h - 8) / 14) * 100));
   const addEvent = () => {
     if (!form.t.trim() || !/^\d{1,2}:\d{2}$/.test(form.time)) { toast('Escribe un título y una hora como 17:00'); return; }
     const time = form.time.padStart(5, '0');
@@ -113,7 +119,7 @@ function ParentsAgenda() {
         {shifts.map(([n, a, b, col]) => (
           <View key={n} style={{ height: 26, borderRadius: 8, backgroundColor: c.paper2, overflow: 'hidden' }}>
             <View style={{ position: 'absolute', top: 0, bottom: 0, left: `${pos(a)}%`, width: `${pos(b) - pos(a)}%`, backgroundColor: col, borderRadius: 8, justifyContent: 'center', paddingLeft: 8 }}>
-              <T v="small" color={c.ink} numberOfLines={1} style={{ fontFamily: F.bold, fontSize: 11 }}>{`${n} ${a}–${b}h`}</T>
+              <T v="small" color={c.ink} numberOfLines={1} style={{ fontFamily: F.bold, fontSize: 11 }}>{`${n} ${Math.round(a)}–${Math.round(b)}h`}</T>
             </View>
           </View>
         ))}
@@ -129,7 +135,7 @@ function ParentsAgenda() {
           <Btn sm style={{ alignSelf: 'flex-start' }} onPress={() => {
             if (!task.t.trim()) return;
             update((d) => { d.tasks.unshift({ id: Date.now(), t: task.t.trim(), who: task.who, done: false }); });
-            toast(`Pendiente asignado a ${PEOPLE[task.who][0]}`); setTask((x) => ({ ...x, t: '' }));
+            toast(`Pendiente asignado a ${nameOf(task.who)}`); setTask((x) => ({ ...x, t: '' }));
           }}>Asignar</Btn>
         </View>
       </Card>
@@ -148,7 +154,7 @@ function CaregiverAgenda() {
     <>
       <Between><T v="h2">Tu agenda de cuidado</T><T v="label">{dayLong(today)}</T></Between>
       <Card>
-        <Between><T v="h3">Tu turno con Sofi</T><T v="label">{`${SHIFT.from} – ${SHIFT.to}`}</T></Between>
+        <Between><T v="h3">{`Tu turno con ${KIDS[SHIFT.kid] ? KIDS[SHIFT.kid].name : ''}`}</T><T v="label">{`${SHIFT.from} – ${SHIFT.to}`}</T></Between>
         <View style={{ height: 34, borderRadius: 8, backgroundColor: c.amberBg, overflow: 'hidden' }}>
           {evs.map((e) => (
             <View key={e.t} style={{ position: 'absolute', top: 0, bottom: 0, left: `${pos(e.time)}%`, width: `${Math.min(100 - pos(e.time), pos(e.end) - pos(e.time))}%`, backgroundColor: c.sun, borderRadius: 8, justifyContent: 'center', paddingLeft: 6 }}>

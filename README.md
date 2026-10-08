@@ -21,5 +21,27 @@ App de apoyo a padres para iOS y Android: actividades didácticas sin pantallas 
 
 Dentro de la app, el selector "Papás / Abuela Carmen" arriba a la derecha muestra cómo cambia lo que ve cada quien.
 
+## Activar cuentas e invitaciones (Supabase, gratis)
+
+Sin esto la app funciona igual, pero solo en **modo demostración** (datos de ejemplo en tu teléfono). Con esto, cada persona tiene su cuenta y los datos se comparten entre teléfonos. Toma unos 15 minutos y no cuesta nada.
+
+1. **Crea tu proyecto.** Entra a https://supabase.com, crea una cuenta (puedes usar Google) y toca **New project**. Nombre: `Tribbu`. Elige una contraseña de base de datos y guárdala. Región: la más cercana a México (por ejemplo East US). Plan: **Free**. Espera un par de minutos a que termine.
+2. **Crea las tablas y las reglas de privacidad.** En el menú izquierdo abre **SQL Editor** → **New query**. Abre el archivo `supabase/schema.sql` de este proyecto, copia **todo** su contenido, pégalo y toca **Run**. Debe decir "Success. No rows returned".
+3. **Para probar sin complicaciones**, apaga la confirmación de correo: **Authentication → Sign In / Providers → Email** y desactiva **Confirm email**. (Antes de publicar la app, vuelve a activarla.)
+4. **Para "Olvidé mi contraseña"**, la app usa un código de 6 dígitos. En **Authentication → Email Templates → Reset Password**, agrega en el cuerpo del correo esta línea: `Tu código es: {{ .Token }}`. Si dejaste activa la confirmación de correo, haz lo mismo en **Confirm signup**.
+5. **Copia tus llaves.** En **Project Settings → API** copia el **Project URL** y la llave **anon public** (también puede llamarse *publishable*). **Nunca uses la llave `service_role`** ni la compartas.
+6. **Pégalas en la app.** En la carpeta del proyecto crea el archivo `.env` copiando `.env.example` (en la terminal: `cp .env.example .env`) y reemplaza los dos valores. En Mac los archivos que empiezan con punto están ocultos; para verlos presiona `Cmd + Shift + .` en Finder.
+7. **Reinicia la app** con `npx expo start --clear`.
+
+Para probar invitaciones: crea tu cuenta y tu familia, ve a **Familia → Invitar**, crea una invitación para "cuidador" y copia el código. Cierra sesión, crea otra cuenta (otro correo) y elige **Tengo un código**. Así ves los dos lados en el mismo teléfono.
+
+Los límites del plan gratis de correos de Supabase son bajos (unos pocos correos por hora). Para el lanzamiento se configura un servicio de correo propio.
+
+## Pruebas de privacidad
+
+Las reglas de quién ve qué viven en la base de datos (`supabase/schema.sql`) y se pueden probar con `supabase/tests/rls_test.sql` sobre un Postgres local (ver el encabezado de ese archivo).
+
 ## Estado
-Fase 1: app completa con datos guardados en el teléfono (sin cuentas ni internet) para probar gratis con Expo Go. La IA es simulada.
+- **Fase 1** lista: app completa en modo demostración.
+- **Fase 2** lista en código: cuentas, familias, invitaciones, permisos por rol y sincronización. Probada de punta a punta con una base de datos Postgres local; pendiente de probar con tu proyecto real de Supabase y en tu teléfono.
+- **Fase 3** pendiente: IA real, notificaciones, ubicación para avisos de llegada, archivos y fotos, y publicación en las tiendas.

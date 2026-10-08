@@ -24,15 +24,29 @@ Prototipo de referencia (diseño y comportamiento aprobados por el dueño): http
 - Animaciones "Ver cómo se juega" en `src/scenes.js` (Animated + react-native-svg). Más adelante pueden sustituirse por archivos Rive/Lottie.
 
 ## Estado de los archivos
-Fase 1 completa en código. Verificado: compila para Android e iOS (`npx expo export`) y se recorrieron todas las pestañas y ambos roles en un navegador de prueba sin errores. **Aún no probado en un teléfono real con Expo Go.**
-- `App.js`, `index.js`, `app.json`, `package.json` (Expo SDK 57; versiones tomadas de `node_modules/expo/bundledNativeModules.json`)
-- `src/data.js`, `theme.js`, `store.js`, `ui.js`, `ai.js`, `scenes.js`, `parts.js`, `sheets.js`
-- `src/screens/`: `Hoy`, `Jugar`, `Agenda`, `Cocina`, `Familia`, `Casa`
+**Fase 1 completa** (modo demostración, datos locales). **Fase 2 completa en código** (cuentas, familias, invitaciones, permisos, sincronización). Verificado: compila para Android e iOS (`npx expo export`); 39 pruebas de privacidad en Postgres (`supabase/tests/rls_test.sql`); recorrido de punta a punta en navegador con Postgres + PostgREST reales y un GoTrue simulado (mamá crea familia, invita a la abuela, ella entra con el código y solo ve lo que le toca). **Aún no probado con un proyecto real de Supabase ni en un teléfono con Expo Go.**
 
-Notas:
-- "Subir documento" en Casa usa el selector de fotos (`expo-image-picker`). Para PDFs en fase 2 añadir `expo-document-picker`.
-- Los 2 avisos de `expo-doctor` en el entorno de la nube eran de red bloqueada, no del proyecto; correrlo en la computadora del dueño.
-- Pendiente fase 2: sin cambios (Supabase, `expo-calendar`).
+- `App.js`, `index.js`, `app.json`, `package.json` (Expo SDK 57; versiones de `node_modules/expo/bundledNativeModules.json`), `.env.example`
+- `src/data.js` (datos demo + `setDemoWorld()` / `setFamilyWorld()` que cambian KIDS, PEOPLE, SHIFT, MEMBERS… en su lugar), `theme.js`, `store.js` (tienda local/demo), `cloudStore.js` (tienda Supabase), `session.js` (AuthProvider), `supabase.js`, `ui.js`, `ai.js`, `scenes.js`, `parts.js`, `sheets.js`
+- `src/screens/`: `Hoy`, `Jugar`, `Agenda`, `Cocina`, `Familia`, `FamiliaAdmin` (invitar, turnos, fichas, cuenta), `Casa`, `Auth` (entrar, crear cuenta, recuperar, onboarding)
+- `supabase/schema.sql` (tablas, RLS, funciones `create_family` / `create_invite` / `accept_invite`), `supabase/tests/`
+
+Cómo funciona la fase 2:
+- Sin `.env` la app arranca en demostración. Con `.env` pide cuenta; la demostración sigue disponible ("Probar en modo demostración").
+- La estructura de `S` es la misma en demo y nube. En la nube cada lista (feed, tasks, docs…) son filas de la tabla `items` y los ajustes de `settings`. `update()` calcula la diferencia y guarda; un refresco trae los cambios de otros (tiempo real + respaldo cada 30 s).
+- **La privacidad la aplica la base de datos (RLS), no la app.** Si cambias qué ve un cuidador, cambia `can_read_item` / `caregiver_can_write` y agrega la prueba.
+- Cada cuenta pertenece a una sola familia. Personas: `p1`, `p2` (papás), `c1`, `c2`… (cuidadores). En la nube, `split` de gastos = porcentaje del primer papá (`PARENTS[0]`).
+- En la nube se ocultan las funciones que son simulación: cámaras, avisos de llegada, vincular calendarios, fotos.
+
+Limitaciones conocidas (decidir antes de publicar):
+- Un cuidador puede reescribir los mensajes de la conversación de un evento (se guarda como un arreglo por evento). Mejor un renglón por mensaje.
+- Los ajustes `pts`, `mile`, `have` se guardan completos: dos personas editándolos al mismo tiempo pueden pisarse.
+- Sin modo sin conexión: si falla el guardado se avisa y se vuelve a cargar lo de la nube.
+- No hay límite de intentos al probar códigos de invitación (10 caracteres, vencen a 7 días, una sola vez).
+- Archivos y fotos (documentos, recetas) no se suben: falta Supabase Storage con reglas por documento compartido. `expo-document-picker` para PDFs.
+- Avisos de llegada reales requieren `expo-location` + geocercas y una compilación con EAS (Expo Go no soporta ubicación en segundo plano).
+- El correo gratis de Supabase tiene límite bajo; configurar SMTP propio. Activar "Confirm email" antes de publicar.
+- Aviso de privacidad (ley mexicana) y consentimiento de cuidadores: pendientes.
 
 ## Permisos por rol (deben respetarse en fase 1 y en las reglas de Supabase en fase 2)
 | Sección | Papás | Cuidadores |
