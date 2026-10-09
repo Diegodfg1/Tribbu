@@ -155,7 +155,7 @@ export function UIProvider({ children }) {
   const toast = useCallback((m) => {
     setToastMsg(m);
     clearTimeout(timer.current);
-    timer.current = setTimeout(() => setToastMsg(null), 2200);
+    timer.current = setTimeout(() => setToastMsg(null), 3200);
   }, []);
   const api = { openSheet, closeSheet, openFull, closeFull, toast };
   return (
@@ -172,13 +172,16 @@ export function UIProvider({ children }) {
 }
 export const useUI = () => useContext(UICtx);
 
+// Aviso de que se hizo una acción. Va arriba para que no lo tape el botón flotante ni la barra de pestañas.
 function ToastView({ msg }) {
   const c = useTheme();
+  const insets = useSafeAreaInsets();
   if (!msg) return null;
   return (
-    <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: 110, alignItems: 'center' }}>
-      <View style={{ backgroundColor: c.leaf, borderRadius: 99, paddingHorizontal: 16, paddingVertical: 9, maxWidth: '90%' }}>
-        <Text style={{ fontFamily: F.bold, fontSize: 13, color: c.paper, textAlign: 'center' }}>{msg}</Text>
+    <View pointerEvents="none" accessibilityLiveRegion="polite" style={{ position: 'absolute', left: 0, right: 0, top: insets.top + 10, alignItems: 'center', zIndex: 50 }}>
+      <View style={{ backgroundColor: c.leaf, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 10, maxWidth: '92%', flexDirection: 'row', gap: 8, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 6 }}>
+        <Text style={{ fontFamily: F.bold, fontSize: 15, color: c.paper }}>✓</Text>
+        <Text style={{ fontFamily: F.bold, fontSize: 14, color: c.paper, flexShrink: 1 }}>{msg}</Text>
       </View>
     </View>
   );
@@ -192,9 +195,9 @@ function SheetModal({ node, onClose, toastMsg }) {
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: c.scrim }]} onPress={onClose} accessibilityLabel="Cerrar" />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ maxHeight: '92%' }}>
-          <View style={{ backgroundColor: c.paper, borderTopLeftRadius: 26, borderTopRightRadius: 26 }}>
+          <View style={{ backgroundColor: c.paper, borderTopLeftRadius: 26, borderTopRightRadius: 26, flexShrink: 1 }}>
             <View style={{ width: 40, height: 5, borderRadius: 9, backgroundColor: c.line, alignSelf: 'center', marginTop: 10 }} />
-            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 18, gap: 12, paddingBottom: 24 + insets.bottom }}>
+            <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 18, gap: 12, paddingBottom: 24 + insets.bottom }}>
               {node}
             </ScrollView>
           </View>

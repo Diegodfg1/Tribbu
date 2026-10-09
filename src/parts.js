@@ -2,11 +2,11 @@
 import React from 'react';
 import { Pressable, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
-import { KIDS, MATS, SKILLS, kidKey, nameOf } from './data';
+import { KIDS, MATS, SKILLS, dateLong, favsOf, fromKey, isCG, isNewAct, kidKey, nameOf, todayKey } from './data';
 import { DEMOS } from './scenes';
 import { useStore } from './store';
-import { useTheme } from './theme';
-import { Check, Pill, Row, T } from './ui';
+import { F, useTheme } from './theme';
+import { Avatar, Check, Pill, Row, T, useUI } from './ui';
 
 export function Glyph({ sk, size = 34 }) {
   const c = useTheme();
@@ -22,6 +22,26 @@ export function Glyph({ sk, size = 34 }) {
   );
 }
 
+// Corazón para marcar una actividad como favorita (solo los papás pueden cambiarlo).
+export function FavButton({ id, size = 22 }) {
+  const c = useTheme();
+  const { S, update } = useStore();
+  const { toast } = useUI();
+  const on = favsOf(S).includes(id);
+  const can = !isCG(S);
+  if (!can && !on) return null;
+  return (
+    <Pressable disabled={!can} hitSlop={10} accessibilityRole="button" accessibilityLabel={on ? 'Quitar de favoritas' : 'Guardar en favoritas'} accessibilityState={{ selected: on }}
+      onPress={(e) => {
+        if (e && e.stopPropagation) e.stopPropagation(); // que el toque no abra también la tarjeta
+        update((d) => { d.favs = d.favs || []; d.favs = on ? d.favs.filter((x) => x !== id) : [...d.favs, id]; });
+        toast(on ? 'Quitada de favoritas' : 'Guardada en favoritas');
+      }}>
+      <T style={{ fontSize: size, lineHeight: size + 4, color: on ? c.berry : c.inkSoft }}>{on ? '♥' : '♡'}</T>
+    </Pressable>
+  );
+}
+
 export function ActCard({ a, i = 0, onPress }) {
   const c = useTheme();
   const { S } = useStore();
@@ -29,35 +49,54 @@ export function ActCard({ a, i = 0, onPress }) {
   const miss = a.mats.filter((m) => !S.have.includes(m));
   const okAge = k.age >= a.age[0] && k.age <= a.age[1];
   const sw = [c.sun, c.skyBg, c.leafBg, c.berryBg, c.amberBg][i % 5];
+  // El corazón va al lado de la tarjeta (no dentro) para que su toque no abra la actividad.
   return (
-    <Pressable onPress={onPress} accessibilityRole="button"
-      style={{ flexDirection: 'row', gap: 12, borderWidth: 1, borderColor: c.line, backgroundColor: c.paper, borderRadius: 18, padding: 12, opacity: miss.length || !okAge ? 0.55 : 1 }}>
-      <View style={{ width: 64, height: 64, borderRadius: 16, backgroundColor: sw, alignItems: 'center', justifyContent: 'center' }}><Glyph sk={a.sk} /></View>
-      <View style={{ flex: 1, gap: 4 }}>
-        <T v="h3">{a.t}</T>
-        <Row gap={4} wrap>
-          <Pill tone={SKILLS[a.sk][1]}>{SKILLS[a.sk][0]}</Pill>
-          <Pill>{`${a.min} min`}</Pill>
-          <Pill>{`${a.age[0]}–${a.age[1]} años`}</Pill>
-          {DEMOS[a.id] ? <Pill tone="sky">Animada</Pill> : null}
-        </Row>
-        {miss.length
-          ? <T v="small" color={c.berry}>{`Te falta: ${miss.map((m) => MATS[m]).join(', ')}`}</T>
-          : <T v="small">{a.mats.map((m) => MATS[m]).join(' · ')}</T>}
-      </View>
-    </Pressable>
+    <View style={{ borderWidth: 1, borderColor: c.line, backgroundColor: c.paper, borderRadius: 18 }}>
+      <Pressable onPress={onPress} accessibilityRole="button" style={{ flexDirection: 'row', gap: 12, padding: 12, opacity: miss.length || !okAge ? 0.55 : 1 }}>
+        <View style={{ width: 64, height: 64, borderRadius: 16, backgroundColor: sw, alignItems: 'center', justifyContent: 'center' }}><Glyph sk={a.sk} /></View>
+        <View style={{ flex: 1, gap: 4 }}>
+          <T v="h3" style={{ paddingRight: 30 }}>{a.t}</T>
+          <Row gap={4} wrap>
+            {isNewAct(a, S) ? <Pill tone="sun">Nueva</Pill> : null}
+            <Pill tone={SKILLS[a.sk][1]}>{SKILLS[a.sk][0]}</Pill>
+            <Pill>{`${a.min} min`}</Pill>
+            <Pill>{`${a.age[0]}–${a.age[1]} años`}</Pill>
+            {DEMOS[a.id] ? <Pill tone="sky">Animada</Pill> : null}
+          </Row>
+          {miss.length
+            ? <T v="small" color={c.berry}>{`Te falta: ${miss.map((m) => MATS[m]).join(', ')}`}</T>
+            : <T v="small">{a.mats.length ? a.mats.map((m) => MATS[m]).join(' · ') : 'No necesitas materiales'}</T>}
+        </View>
+      </Pressable>
+      <View style={{ position: 'absolute', top: 10, right: 12 }}><FavButton id={a.id} /></View>
+    </View>
   );
 }
 
-export function TaskRow({ t, first }) {
+export function TaskRow({ t, first, onEdit }) {
   const c = useTheme();
-  const { update } = useStore();
+  const { S, update } = useStore();
+  const { toast } = useUI();
+  const overdue = t.due && !t.done && t.due < todayKey();
   return (
-    <View style={{ paddingVertical: 9, borderTopWidth: first ? 0 : 1, borderTopColor: c.line }}>
-      <Check on={t.done} label={t.t} onPress={() => update((d) => { const x = d.tasks.find((y) => y.id === t.id); x.done = !x.done; })}>
-        <T style={t.done ? { textDecorationLine: 'line-through', color: c.inkSoft } : null}>{t.t}</T>
-        <View style={{ marginTop: 3 }}><Pill>{nameOf(t.who)}</Pill></View>
-      </Check>
+    <View style={{ paddingVertical: 9, borderTopWidth: first ? 0 : 1, borderTopColor: c.line, flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+      <View style={{ flex: 1 }}>
+        <Check on={t.done} label={t.t} onPress={() => {
+          update((d) => { const x = d.tasks.find((y) => y.id === t.id); x.done = !x.done; });
+          toast(t.done ? 'Pendiente reabierto' : 'Pendiente completado ✓');
+        }}>
+          <T style={t.done ? { textDecorationLine: 'line-through', color: c.inkSoft } : null}>{t.t}</T>
+          <Row gap={4} wrap style={{ marginTop: 3 }}>
+            <Pill>{nameOf(t.who)}</Pill>
+            {t.due ? <Pill tone={overdue ? 'berry' : 'sky'}>{`${overdue ? 'Vencido · ' : 'Para el '}${dateLong(fromKey(t.due))}`}</Pill> : null}
+          </Row>
+        </Check>
+      </View>
+      {onEdit && !isCG(S) ? (
+        <Pressable onPress={() => onEdit(t.id)} accessibilityRole="button" accessibilityLabel={`Editar ${t.t}`} hitSlop={8} style={{ paddingVertical: 2 }}>
+          <T v="small" color={c.sky} style={{ fontFamily: F.bold }}>Editar</T>
+        </Pressable>
+      ) : null}
     </View>
   );
 }

@@ -4,7 +4,7 @@
 // y con "Ver como" cambias de persona para comprobar qué ve cada quien.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BLANK_MENU, KIDS, setFamilyWorld } from './data';
+import { BLANK_MENU, KIDS, monthOf, setFamilyWorld } from './data';
 import { StoreCtx } from './store';
 import { OnboardingScreen } from './screens/Auth';
 
@@ -16,7 +16,7 @@ export function blankState({ myName, kids }) {
   const pts = {};
   rows.forEach((r) => { pts[r.key] = 0; });
   return {
-    v: 1, blank: true, kid: rows[0].key, role: 'padres', me: 'p1', view: 'hoy', jtab: 'act', ctab: 'menu', skill: null,
+    v: 1, blank: true, kid: rows[0].key, role: 'padres', me: 'p1', view: 'hoy', jtab: 'act', ctab: 'menu', skill: null, afilter: 'all', favs: [], since: monthOf(new Date()),
     have: [], tasks: [], myrecs: [], feed: [], shop: [], docs: [], exp: [], myevents: [], evchat: {}, mile: {}, pts,
     cal: { google: { on: false, mode: 'ocupado' }, outlook: { on: false, mode: 'ocupado' }, icloud: { on: false, mode: 'detalle' } },
     copa: false, locs: {}, camlog: true, summary: null,

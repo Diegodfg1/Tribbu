@@ -62,7 +62,7 @@ insert into public.items (family_id, collection, id, data) values
  (:'fid','evchat','a|15:00|Ballet','{"kid":"k1","msgs":[]}'),
  (:'fid','evchat','a|15:00|Natación','{"kid":"k2","msgs":[]}'),
  (:'fid','myrecs','r1','{"id":1,"t":"Receta"}');
-insert into public.settings values (:'fid','cal','{"google":{"on":true}}'), (:'fid','copa','true'), (:'fid','menu','[["Lun",1]]') ;
+insert into public.settings values (:'fid','cal','{"google":{"on":true}}'), (:'fid','copa','true'), (:'fid','menu','[["Lun",1]]'), (:'fid','favs','[3]'), (:'fid','since','"2026-10"') ;
 update public.settings set value = '{"k1":14,"k2":26}' where family_id = :'fid' and key = 'pts';
 update public.settings set value = '["calcetines"]' where family_id = :'fid' and key = 'have';
 select pg_temp.check((select count(*) from public.items) = 17, 'mamá ve todo');
@@ -84,7 +84,7 @@ select pg_temp.check((select count(*) from public.items where collection='myeven
 select pg_temp.check((select count(*) from public.items where collection='evchat') = 1, 'conversaciones: solo de su niño');
 select pg_temp.check((select count(*) from public.items where collection='myrecs') = 1, 've recetas');
 select pg_temp.check((select count(*) from public.kids) = 1 and (select key from public.kids) = 'k1', 'solo ve la ficha de su niño');
-select pg_temp.check((select count(*) from public.settings) = 3 and (select count(*) from public.settings where key in ('have','pts','menu')) = 3, 'ajustes: solo materiales, puntos y menú (no calendarios, ni coparentalidad)');
+select pg_temp.check((select count(*) from public.settings) = 5 and (select count(*) from public.settings where key in ('have','pts','menu','favs','since')) = 5, 'ajustes: solo materiales, puntos, menú, favoritas y mes de inicio (no calendarios, ni coparentalidad)');
 select pg_temp.check((select count(*) from public.invites) = 0, 'no ve invitaciones');
 select pg_temp.check((select count(*) from public.members) = 3, 've quién forma la familia (nombres)');
 
@@ -121,6 +121,8 @@ reset role;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000c');
 select pg_temp.check(pg_temp.fails(format($q$update settings set value='{"k1":0,"k2":26}' where family_id=%L and key='pts'$q$, :'fid')), 'cuidadora no puede quitar puntos (canjear)');
 select pg_temp.check(pg_temp.fails(format($q$update settings set value='[]' where family_id=%L and key='menu'$q$, :'fid')) or (select value::text from public.settings where key='menu') = '[["Lun", 1]]', 'cuidadora no cambia el menú');
+update public.settings set value = '[]' where family_id = :'fid' and key = 'favs';
+select pg_temp.check((select value::text from public.settings where key='favs') = '[3]', 'cuidadora no cambia las actividades favoritas');
 select pg_temp.check(pg_temp.fails(format($q$insert into settings values (%L,'copa','false') on conflict (family_id,key) do update set value=excluded.value$q$, :'fid')), 'cuidadora no cambia coparentalidad');
 update public.members set role = 'parent' where user_id = auth.uid();
 select pg_temp.check((select role from public.members where user_id = auth.uid()) = 'caregiver', 'cuidadora no puede ascenderse a papá');

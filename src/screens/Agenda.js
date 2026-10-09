@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import {
-  KIDS, MEMBERS, PEOPLE, SHIFT, SRC, addD, dayEvents, dayLong, dayShort, dk, evKey, fromKey, inShift, isCG, isOwn, mins, nameOf, overlaps, today,
+  BASE_EVENTS, EXT_EVENTS, KIDS, MEMBERS, MONTHS, SHIFT, SRC, dateLong, dayEvents, dayLong, dayShort, dk, evKey, fromKey, inShift, isCG, isOwn, mins, overlaps, tasksSorted, today, todayKey,
 } from '../data';
+import { EventEditor, TaskEditor } from '../editors';
 import { TaskRow } from '../parts';
+import { MonthGrid } from '../pickers';
 import { CalendarsSheet, EventSheet } from '../sheets';
 import { useStore } from '../store';
 import { F, useTheme } from '../theme';
-import { Between, Btn, Card, Chip, Field, Pill, Row, T, useUI } from '../ui';
+import { Between, Btn, Card, Pill, Row, T, useUI } from '../ui';
 
 const Sq = ({ color }) => <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: color }} />;
 
@@ -61,35 +63,45 @@ function EventRow({ e, ext, first, dayLbl }) {
 function ParentsAgenda() {
   const c = useTheme();
   const { S, update } = useStore();
-  const { openSheet, toast } = useUI();
-  const [sel, setSel] = useState(dk(today));
-  const [form, setForm] = useState({ t: '', d: dk(today), time: '17:00', kid: S.kid });
-  const [task, setTask] = useState({ t: '', who: (MEMBERS.find((x) => x.role === 'caregiver') || MEMBERS[0] || { key: '' }).key });
-  const days = [0, 1, 2, 3, 4, 5, 6].map(addD);
+  const { openSheet, openFull, toast } = useUI();
+  const [sel, setSel] = useState(todayKey());
+  const [showCal, setShowCal] = useState(false);
+  const selD = fromKey(sel);
+  const monday = new Date(selD);
+  monday.setDate(selD.getDate() - ((selD.getDay() + 6) % 7));
+  const days = [0, 1, 2, 3, 4, 5, 6].map((n) => { const d = new Date(monday); d.setDate(monday.getDate() + n); return d; });
   const { all, ext } = dayEvents(S, sel);
-  const dayLbl = dayLong(fromKey(sel));
+  const dayLbl = dateLong(selD);
   const linked = Object.keys(S.cal).filter((k) => S.cal[k].on).length;
+  const marks = [...new Set([...BASE_EVENTS, ...S.myevents, ...(S.extevents || EXT_EVENTS)].map((e) => e.d))];
   const tones = [c.sun, c.leafBg, c.berryBg];
   const hr = (t) => mins(t) / 60;
   const shifts = MEMBERS.filter((m) => m.role === 'caregiver' && KIDS[m.kid])
     .map((m, i) => [`${m.name} · ${KIDS[m.kid].name}`, hr(m.from), hr(m.to), tones[i % 3]]);
   if (!isOwn(S)) shifts.push(['Tú', 19, 22, c.skyBg]);
   const pos = (h) => Math.max(0, Math.min(100, ((h - 8) / 14) * 100));
-  const addEvent = () => {
-    if (!form.t.trim() || !/^\d{1,2}:\d{2}$/.test(form.time)) { toast('Escribe un título y una hora como 17:00'); return; }
-    const time = form.time.padStart(5, '0');
-    update((d) => { d.myevents.push({ d: form.d, time, t: form.t.trim(), kid: form.kid, tag: 'Familia' }); });
-    setSel(form.d); setForm((f) => ({ ...f, t: '' })); toast('Evento agregado al calendario familiar');
-  };
+  const move = (n) => { const d = new Date(selD); d.setDate(d.getDate() + 7 * n); setSel(dk(d)); };
+  const tasks = tasksSorted(S.tasks);
+  const doneCount = tasks.filter((t) => t.done).length;
+  const short = (d) => `${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}`;
   return (
     <>
       <Between><T v="h2">Agenda familiar</T><Btn sm kind="ghost" onPress={() => openSheet(<CalendarsSheet />)}>{`Calendarios · ${linked + 1}`}</Btn></Between>
+      <Between>
+        <Pressable onPress={() => move(-1)} accessibilityRole="button" accessibilityLabel="Semana anterior" hitSlop={8} style={{ paddingHorizontal: 10 }}><T v="h2">‹</T></Pressable>
+        <Pressable onPress={() => setShowCal((v) => !v)} accessibilityRole="button" accessibilityLabel="Ir a una fecha" style={{ flex: 1, alignItems: 'center' }}>
+          <T v="bold">{`${short(days[0])} – ${short(days[6])}`}</T>
+          <T v="small" color={c.sky}>{showCal ? 'Cerrar calendario' : 'Ir a otra fecha'}</T>
+        </Pressable>
+        <Pressable onPress={() => move(1)} accessibilityRole="button" accessibilityLabel="Semana siguiente" hitSlop={8} style={{ paddingHorizontal: 10 }}><T v="h2">›</T></Pressable>
+      </Between>
+      {showCal ? <MonthGrid value={sel} marks={marks} onPick={(k) => { setSel(k); setShowCal(false); }} /> : null}
       <View style={{ flexDirection: 'row', gap: 4 }}>
         {days.map((d) => {
-          const k = dk(d); const on = k === sel; const has = dayEvents(S, k).all.length > 0;
+          const k = dk(d); const on = k === sel; const has = marks.includes(k) && dayEvents(S, k).all.length > 0;
           return (
-            <Pressable key={k} onPress={() => setSel(k)} accessibilityState={{ selected: on }}
-              style={{ flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: 14, backgroundColor: on ? c.ink : 'transparent', gap: 1 }}>
+            <Pressable key={k} onPress={() => setSel(k)} accessibilityRole="button" accessibilityState={{ selected: on }}
+              style={{ flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: 14, backgroundColor: on ? c.ink : 'transparent', borderWidth: k === todayKey() && !on ? 1.5 : 0, borderColor: c.sun, gap: 1 }}>
               <T v="small" color={on ? c.paper : c.inkSoft} style={{ fontFamily: F.bold, fontSize: 11 }}>{dayShort(d)}</T>
               <T style={{ fontFamily: F.displayB, fontSize: 18, color: on ? c.paper : c.ink }}>{String(d.getDate())}</T>
               <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: has ? c.sun : 'transparent' }} />
@@ -100,44 +112,25 @@ function ParentsAgenda() {
       <Card style={{ gap: 0 }}>
         <T v="label" style={{ marginBottom: 4 }}>{`${dayLbl} · toca un evento para ver su conversación`}</T>
         {all.length ? all.map((e, i) => <EventRow key={`${e.src}${e.time}${e.t}`} e={e} ext={ext} first={i === 0} dayLbl={dayLbl} />) : <T v="small">Sin eventos este día.</T>}
+        <Btn kind="sun" style={{ marginTop: 10 }} onPress={() => openFull(<EventEditor date={sel} onDone={setSel} />)}>+ Agregar evento</Btn>
       </Card>
-      <Card>
-        <Between><T v="h3">Nuevo evento familiar</T><Row gap={6}><Sq color={c.sun} /><T v="small">Tribbu familiar</T></Row></Between>
-        <Field placeholder="P. ej. clase de música" value={form.t} onChangeText={(t) => setForm((f) => ({ ...f, t }))} />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-          {days.map((d) => <Chip key={dk(d)} on={form.d === dk(d)} onPress={() => setForm((f) => ({ ...f, d: dk(d) }))}>{`${dayShort(d)} ${d.getDate()}`}</Chip>)}
-        </ScrollView>
-        <Row>
-          <Field style={{ width: 90 }} placeholder="17:00" value={form.time} onChangeText={(time) => setForm((f) => ({ ...f, time }))} keyboardType="numbers-and-punctuation" />
-          {Object.entries(KIDS).map(([k, v]) => <Chip key={k} on={form.kid === k} onPress={() => setForm((f) => ({ ...f, kid: k }))}>{v.name}</Chip>)}
+      <Card style={{ gap: 0 }}>
+        <Between style={{ marginBottom: 4 }}><T v="h3">Pendientes</T><T v="label">{`${tasks.length - doneCount} abiertos`}</T></Between>
+        {tasks.length ? tasks.map((t, i) => <TaskRow key={t.id} t={t} first={i === 0} onEdit={(id) => openFull(<TaskEditor id={id} />)} />) : <T v="small">No hay pendientes.</T>}
+        <Row style={{ marginTop: 10 }} wrap>
+          <Btn kind="sun" onPress={() => openFull(<TaskEditor id={null} />)}>+ Agregar pendiente</Btn>
+          {doneCount ? <Btn kind="ghost" onPress={() => { update((d) => { d.tasks = d.tasks.filter((t) => !t.done); }); toast(`Se quitaron ${doneCount} pendientes completados`); }}>Quitar completados</Btn> : null}
         </Row>
-        <Btn sm onPress={addEvent} style={{ alignSelf: 'flex-start' }}>Agregar</Btn>
-        <T v="small">Los cuidadores solo lo ven si cae en su turno.</T>
       </Card>
       <Card>
         <Between><T v="h3">Turnos de cuidado de hoy</T><T v="label">8:00 – 22:00</T></Between>
-        {shifts.map(([n, a, b, col]) => (
+        {shifts.length ? shifts.map(([n, a, b, col]) => (
           <View key={n} style={{ height: 26, borderRadius: 8, backgroundColor: c.paper2, overflow: 'hidden' }}>
             <View style={{ position: 'absolute', top: 0, bottom: 0, left: `${pos(a)}%`, width: `${pos(b) - pos(a)}%`, backgroundColor: col, borderRadius: 8, justifyContent: 'center', paddingLeft: 8 }}>
               <T v="small" color={c.ink} numberOfLines={1} style={{ fontFamily: F.bold, fontSize: 11 }}>{`${n} ${Math.round(a)}–${Math.round(b)}h`}</T>
             </View>
           </View>
-        ))}
-      </Card>
-      <Card style={{ gap: 0 }}>
-        <Between style={{ marginBottom: 4 }}><T v="h3">Pendientes</T><T v="label">{`${S.tasks.filter((t) => !t.done).length} abiertos`}</T></Between>
-        {S.tasks.map((t, i) => <TaskRow key={t.id} t={t} first={i === 0} />)}
-        <View style={{ gap: 8, marginTop: 8 }}>
-          <Field placeholder="Nuevo pendiente, p. ej. comprar leche" value={task.t} onChangeText={(t) => setTask((x) => ({ ...x, t }))} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-            {Object.entries(PEOPLE).map(([k, [n]]) => <Chip key={k} on={task.who === k} onPress={() => setTask((x) => ({ ...x, who: k }))}>{n}</Chip>)}
-          </ScrollView>
-          <Btn sm style={{ alignSelf: 'flex-start' }} onPress={() => {
-            if (!task.t.trim()) return;
-            update((d) => { d.tasks.unshift({ id: Date.now(), t: task.t.trim(), who: task.who, done: false }); });
-            toast(`Pendiente asignado a ${nameOf(task.who)}`); setTask((x) => ({ ...x, t: '' }));
-          }}>Asignar</Btn>
-        </View>
+        )) : <T v="small">Aún no hay cuidadores con turno. Agrégalos en Familia.</T>}
       </Card>
     </>
   );

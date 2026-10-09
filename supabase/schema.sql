@@ -77,7 +77,7 @@ create table if not exists public.invites (
 -- Claves de ajustes permitidas (se vuelve a crear para que el esquema se pueda correr otra vez).
 alter table public.settings drop constraint if exists settings_key_check;
 alter table public.settings add constraint settings_key_check
-  check (key in ('have','cal','locs','copa','camlog','pts','mile','summary','menu'));
+  check (key in ('have','cal','locs','copa','camlog','pts','mile','summary','menu','favs','since'));
 
 create index if not exists items_family_collection on public.items (family_id, collection);
 
@@ -202,10 +202,11 @@ drop policy if exists items_delete on public.items;
 create policy items_delete on public.items for delete to authenticated
   using (public.is_parent(family_id));
 
--- Ajustes: los cuidadores ven "have" (materiales), "pts" (puntos) y "menu"; solo modifican "have" y "pts".
+-- Ajustes: los cuidadores ven "have" (materiales), "pts" (puntos), "menu", "favs" (actividades favoritas) y "since"
+-- (mes en que empezaron las actividades); solo modifican "have" y "pts".
 drop policy if exists settings_select on public.settings;
 create policy settings_select on public.settings for select to authenticated
-  using (public.is_parent(family_id) or (public.is_member(family_id) and key in ('have', 'pts', 'menu')));
+  using (public.is_parent(family_id) or (public.is_member(family_id) and key in ('have', 'pts', 'menu', 'favs', 'since')));
 drop policy if exists settings_insert on public.settings;
 create policy settings_insert on public.settings for insert to authenticated
   with check (public.is_parent(family_id) or (public.is_member(family_id) and key in ('have', 'pts')));

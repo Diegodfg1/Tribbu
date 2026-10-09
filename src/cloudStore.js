@@ -11,7 +11,7 @@ import { useTheme } from './theme';
 
 const LISTS = ['tasks', 'myrecs', 'feed', 'shop', 'docs', 'exp'];
 const NEWEST_FIRST = ['feed', 'tasks', 'exp', 'myrecs']; // se agregan con unshift
-const SETTING_KEYS = ['have', 'cal', 'locs', 'copa', 'camlog', 'pts', 'mile', 'summary', 'menu'];
+const SETTING_KEYS = ['have', 'cal', 'locs', 'copa', 'camlog', 'pts', 'mile', 'summary', 'menu', 'favs', 'since'];
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const evId = (e) => `${e.d}|${e.time}|${e.t}`;
 // Las rutas de archivos locales (file://…) no sirven en otros teléfonos: no se sincronizan.
@@ -33,7 +33,7 @@ export function toRows(S) {
 
 const defaultSettings = () => ({
   have: [], cal: { google: { on: false, mode: 'ocupado' }, outlook: { on: false, mode: 'ocupado' }, icloud: { on: false, mode: 'detalle' } },
-  locs: {}, copa: false, camlog: true, pts: {}, mile: {}, summary: null, menu: BLANK_MENU(),
+  locs: {}, copa: false, camlog: true, pts: {}, mile: {}, summary: null, menu: BLANK_MENU(), favs: [], since: null,
 });
 
 export function buildState(rows, settings, local) {
@@ -111,7 +111,7 @@ export function CloudStoreProvider({ fam, children }) {
       const kidKeys = Object.keys(KIDS);
       const local = {
         kid: prev && KIDS[prev.kid] ? prev.kid : kidKeys[0] || '',
-        view: (prev && prev.view) || 'hoy', jtab: (prev && prev.jtab) || 'act', ctab: (prev && prev.ctab) || 'menu', skill: prev ? prev.skill : null,
+        view: (prev && prev.view) || 'hoy', jtab: (prev && prev.jtab) || 'act', ctab: (prev && prev.ctab) || 'menu', skill: prev ? prev.skill : null, afilter: (prev && prev.afilter) || 'all',
         role: role === 'parent' ? 'padres' : 'cuidador', me: meKey,
       };
       const next = buildState(items, settings, local);

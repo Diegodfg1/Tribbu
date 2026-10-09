@@ -1,22 +1,48 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Pressable, View } from 'react-native';
-import { ACTS, KIDS, MATS, REWARDS, SKILLS, choresOf, isCG, kidKey, me, milestonesOf, now } from '../data';
+import { ACTS, KIDS, MATS, REWARDS, SKILLS, choresOf, favsOf, isCG, isCloud, isNewAct, kidKey, lockedCount, me, milestonesOf, mkFeed, monthOf, monthsUsed, unlockedActs } from '../data';
 import { ActCard } from '../parts';
 import { ActivitySheet } from '../sheets';
 import { useStore } from '../store';
 import { F, useTheme } from '../theme';
 import { Between, Btn, Card, Check, Chip, Row, Seg, T, useUI } from '../ui';
 
+const MONTH_CAP = 60; // tope de meses para la prueba de "avanzar un mes"
+
 function Activities() {
   const { S, update } = useStore();
-  const { openSheet } = useUI();
+  const { openSheet, toast } = useUI();
   const k = KIDS[kidKey(S)];
+  const filter = S.afilter || 'all';
+  const fav = favsOf(S);
+  // Los papás fijan el mes en que empezaron a usar las actividades (de ahí cuenta la rotación mensual).
+  useEffect(() => { if (!S.since && !isCG(S)) update((d) => { d.since = monthOf(new Date()); }); }, []);
+  const open = unlockedActs(S);
+  const nNew = open.filter((a) => isNewAct(a, S)).length;
+  const nFav = open.filter((a) => fav.includes(a.id)).length;
+  const later = lockedCount(S);
   const score = (a) => (a.mats.every((m) => S.have.includes(m)) ? 0 : 2) + (k.age >= a.age[0] && k.age <= a.age[1] ? 0 : 1);
-  const list = ACTS.filter((a) => !S.skill || a.sk === S.skill).sort((a, b) => score(a) - score(b));
+  let list = open.filter((a) => !S.skill || a.sk === S.skill);
+  if (filter === 'fav') list = list.filter((a) => fav.includes(a.id));
+  if (filter === 'new') list = list.filter((a) => isNewAct(a, S));
+  list = [...list].sort((a, b) => score(a) - score(b));
   const ready = list.filter((a) => score(a) === 0).length;
   const all = Object.keys(MATS);
+  const advance = () => {
+    update((d) => {
+      const [y, m] = (d.since || monthOf(new Date())).split('-').map(Number);
+      d.since = monthOf(new Date(y, m - 2, 1));
+    });
+    toast('Prueba: simulamos que pasó un mes');
+  };
   return (
     <>
+      <Seg full options={[['all', 'Todas'], ['fav', `♥ Favoritas · ${nFav}`], ['new', `✨ Nuevas · ${nNew}`]]} value={filter} onChange={(v) => update((d) => { d.afilter = v; })} />
+      {filter === 'new' ? (
+        <Card bg="transparent" border="transparent" style={{ padding: 0 }}>
+          <T v="small">{`Cada mes se desbloquean actividades nuevas. ${later ? `Faltan ${later} por llegar en los próximos meses.` : 'Ya viste todas las que trae esta versión de la app; pronto habrá más.'}`}</T>
+        </Card>
+      ) : null}
       <Between>
         <T v="h2">¿Qué hay en casa?</T>
         <Btn sm kind="ghost" onPress={() => update((d) => { d.have = d.have.length === all.length ? [] : all; })}>Todo</Btn>
@@ -32,7 +58,9 @@ function Activities() {
         {Object.entries(SKILLS).map(([s, [label]]) => <Chip key={s} on={S.skill === s} onPress={() => update((d) => { d.skill = s; })}>{label}</Chip>)}
       </Row>
       <T v="label">{`${ready} lista${ready === 1 ? '' : 's'} para ${k.name} con lo que tienes`}</T>
-      {list.map((a, i) => <ActCard key={a.id} a={a} i={i} onPress={() => openSheet(<ActivitySheet id={a.id} />)} />)}
+      {list.length ? list.map((a, i) => <ActCard key={a.id} a={a} i={i} onPress={() => openSheet(<ActivitySheet id={a.id} />)} />)
+        : <T v="small">{filter === 'fav' ? 'Aún no hay favoritas. Toca el corazón ♡ en una actividad para guardarla aquí.' : filter === 'new' ? 'No hay actividades nuevas este mes. El próximo mes se desbloquean más.' : 'No hay actividades con esos filtros.'}</T>}
+      {later && !isCloud(S) && monthsUsed(S) < MONTH_CAP ? <Btn sm kind="ghost" style={{ alignSelf: 'center', opacity: 0.7 }} onPress={advance}>Solo para pruebas: avanzar un mes</Btn> : null}
     </>
   );
 }
@@ -59,7 +87,7 @@ function Points() {
           <Between key={n} style={{ paddingVertical: 6, borderTopWidth: i ? 1 : 0, borderTopColor: c.line }}>
             <T style={{ flex: 1 }}>{n}</T>
             <Btn sm kind="sun" onPress={() => {
-              update((d) => { d.pts[kk] = (d.pts[kk] || 0) + v; d.feed.unshift({ id: Date.now(), who: me(S), kid: kk, kind: 'Puntos', txt: `+${v} por «${n}».`, t: now(), lvl: 'info' }); });
+              update((d) => { d.pts[kk] = (d.pts[kk] || 0) + v; d.feed.unshift(mkFeed(S, { kid: kk, kind: 'Puntos', txt: `+${v} por «${n}».` })); });
               toast(`+${v} puntos para ${k.name}`);
             }}>{`+${v}`}</Btn>
           </Between>
@@ -85,7 +113,7 @@ function Points() {
 function Milestones() {
   const c = useTheme();
   const { S, update } = useStore();
-  const { openSheet } = useUI();
+  const { openSheet, toast } = useUI();
   const kk = kidKey(S);
   const ms = milestonesOf(kk);
   const done = ms.filter((m) => S.mile[m[0]]).length;
@@ -98,7 +126,7 @@ function Milestones() {
           const a = ACTS.find((x) => x.id === act);
           return (
             <View key={id} style={{ paddingVertical: 8, borderTopWidth: i ? 1 : 0, borderTopColor: c.line, gap: 4 }}>
-              <Check on={!!S.mile[id]} label={t} onPress={() => update((d) => { d.mile[id] = !d.mile[id]; })}><T>{t}</T></Check>
+              <Check on={!!S.mile[id]} label={t} onPress={() => { update((d) => { d.mile[id] = !d.mile[id]; }); toast(S.mile[id] ? 'Hito desmarcado' : '¡Hito logrado! 🎉'); }}><T>{t}</T></Check>
               {a ? (
                 <Pressable onPress={() => openSheet(<ActivitySheet id={a.id} />)} style={{ marginLeft: 32 }}>
                   <T v="small" color={c.sky} style={{ fontFamily: F.bold }}>{`Practícalo con «${a.t}»`}</T>

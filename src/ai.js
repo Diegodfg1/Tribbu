@@ -2,7 +2,7 @@
 // FASE 1 (gratis): respuestas de ejemplo generadas en el teléfono, sin internet ni costo.
 // FASE 3: askTribbu() llamará a una función segura en Supabase que usa la API de Claude.
 //   La llave de la API NUNCA va dentro de la app; vive en el servidor.
-import { ACTS, KIDS, MATS, SHIFT, isCG, kidKey, nameOf } from './data';
+import { KIDS, MATS, SHIFT, feedDay, isCG, kidKey, nameOf, todayKey, unlockedActs } from './data';
 
 export const AI_LIVE = false; // cambiará a true en la fase 3
 
@@ -30,15 +30,16 @@ export async function askTribbu(S, question) {
   if (/berrinche|dormir|llora|calmar/i.test(question)) {
     return `Baja la voz y ponte a su altura. Nombra lo que siente ("estás enojada porque…") y ofrece dos opciones sencillas. Para dormir, repitan la misma rutina corta cada noche: baño, cuento y luz baja. Si los berrinches son muy frecuentes o intensos, coméntalo con su pediatra.` + TAG;
   }
-  const a = ACTS.filter((x) => k.age >= x.age[0] && k.age <= x.age[1] && x.mats.every((m) => S.have.includes(m))).slice(0, 2);
+  const a = unlockedActs(S).filter((x) => k.age >= x.age[0] && k.age <= x.age[1] && x.mats.every((m) => S.have.includes(m))).slice(0, 2);
   return `Con lo que hay en casa, para ${k.name} propongo:\n• ${a[0] ? `${a[0].t} (${a[0].min} min)` : 'Fuerte de almohadas'}\n• ${a[1] ? `${a[1].t} (${a[1].min} min)` : 'Camino de cinta'}\nEmpieza con la más movida y cierra con una tranquila antes de la cena.` + TAG;
 }
 
 export async function summarizeDay(S) {
   await wait(800);
-  const att = S.feed.filter((x) => x.lvl !== 'info' && !x.parentsOnly);
+  const todays = S.feed.filter((x) => feedDay(x) === todayKey());
+  const att = todays.filter((x) => x.lvl !== 'info' && !x.parentsOnly);
   const lines = Object.keys(KIDS).map((kk) => {
-    const items = S.feed.filter((x) => x.kid === kk);
+    const items = todays.filter((x) => x.kid === kk);
     return `${KIDS[kk].name}: ${items.length ? items.map((x) => `${x.kind.toLowerCase()} (${x.t}, ${nameOf(x.who)})`).join(', ') : 'sin registros'}.`;
   });
   return (att.length ? `Para atender: ${att.map((x) => `${KIDS[x.kid].name}: ${x.txt}`).join(' ')}\n\n` : '') + lines.join('\n') + TAG;

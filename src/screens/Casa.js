@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { KIDS, MEMBERS, PARENTS, addD, arrivalsOf, camEventsOf, camsOf, dayShort, isBlank, isCloud, kidKey, me, money, nameOf, now, shortOf } from '../data';
+import { KIDS, MEMBERS, PARENTS, addD, arrivalsOf, camEventsOf, camsOf, dayShort, isBlank, isCloud, kidKey, me, mkFeed, money, nameOf, now, shortOf } from '../data';
 import { BoardScreen, LiveCamSheet } from '../sheets';
 import { useStore } from '../store';
 import { F, useTheme } from '../theme';
@@ -28,7 +28,7 @@ function Cameras() {
   const addCam = () => {
     if (!name.trim()) { toast('Escribe el nombre de la cámara'); return; }
     update((d) => { d.cams.push({ id: `c${Date.now()}`, n: name.trim(), type, via: CAM_TYPES.find((x) => x[0] === type)[1], sensor: null }); });
-    setName('');
+    setName(''); toast('Cámara agregada (simulación)');
   };
   return (
     <Card>
@@ -43,7 +43,7 @@ function Cameras() {
           <Row wrap>
             <Btn sm onPress={() => openSheet(<LiveCamSheet cam={cam} />)}>Ver en vivo</Btn>
             <Btn sm kind="ghost" onPress={() => toast('En la app real abre la app del fabricante de la cámara')}>Abrir app de la cámara</Btn>
-            {blank ? <Btn sm kind="ghost" onPress={() => update((d) => { d.camev.unshift({ cam: cam.id, t: now(), txt: CAM_ALERTS[Math.floor(Math.random() * CAM_ALERTS.length)] }); })}>Simular aviso</Btn> : null}
+            {blank ? <Btn sm kind="ghost" onPress={() => { update((d) => { d.camev.unshift({ cam: cam.id, t: now(), txt: CAM_ALERTS[Math.floor(Math.random() * CAM_ALERTS.length)] }); }); toast('Aviso simulado'); }}>Simular aviso</Btn> : null}
           </Row>
         </View>
       ))}
@@ -60,14 +60,14 @@ function Cameras() {
         <Between key={i}>
           <T v="small" color={c.ink} style={{ flex: 1 }}>{`${e.t}  ${nameOfCam(e.cam)}: ${e.txt}`}</T>
           <Btn sm kind="ghost" onPress={() => {
-            update((d) => { d.feed.unshift({ id: Date.now(), who: me(S), kid: Object.keys(KIDS)[0], kind: 'Cámara', txt: `${nameOfCam(e.cam)}: ${e.txt} (${e.t}).`, t: now(), lvl: 'info', parentsOnly: true }); });
+            update((d) => { d.feed.unshift(mkFeed(S, { kid: Object.keys(KIDS)[0], kind: 'Cámara', txt: `${nameOfCam(e.cam)}: ${e.txt} (${e.t}).`, parentsOnly: true })); });
             toast('Agregado a la bitácora, solo para papás');
           }}>A bitácora</Btn>
         </Between>
       )) : <T v="small">{blank ? 'Sin avisos. Usa «Simular aviso» en una cámara.' : 'Sin avisos.'}</T>}
       <Between>
         <T v="small" style={{ flex: 1 }}>Registrar avisos de cámaras en la bitácora automáticamente (solo visibles para papás)</T>
-        <Toggle value={S.camlog} label="Registrar avisos automáticamente" onChange={(v) => update((d) => { d.camlog = v; })} />
+        <Toggle value={S.camlog} label="Registrar avisos automáticamente" onChange={(v) => { update((d) => { d.camlog = v; }); toast(v ? 'Los avisos irán a la bitácora' : 'Avisos de cámara en la bitácora: apagado'); }} />
       </Between>
       <T v="small">Tribbu no guarda video. Los cuidadores aceptaron el aviso de privacidad y saben que hay cámaras en la casa.</T>
     </Card>
@@ -145,7 +145,7 @@ function Expenses() {
     <Card>
       <Between>
         <T v="h3">Gastos compartidos</T>
-        {two ? <Row gap={6}><T v="small">Coparentalidad</T><Toggle value={!!S.copa} label="Modo coparentalidad" onChange={(v) => update((d) => { d.copa = v; })} /></Row> : null}
+        {two ? <Row gap={6}><T v="small">Coparentalidad</T><Toggle value={!!S.copa} label="Modo coparentalidad" onChange={(v) => { update((d) => { d.copa = v; }); toast(v ? 'Modo coparentalidad activado' : 'Modo coparentalidad apagado'); }} /></Row> : null}
       </Between>
       {S.copa && two ? (
         <>
@@ -220,7 +220,7 @@ function Arrivals() {
       {care.map((m) => (
         <Between key={m.key}>
           <View style={{ flex: 1 }}><T v="bold">{m.name}</T><T v="small">Lugares acordados</T></View>
-          <Toggle value={!!S.locs[m.key]} label={`Avisos de ${m.name}`} onChange={(v) => update((d) => { d.locs[m.key] = v; })} />
+          <Toggle value={!!S.locs[m.key]} label={`Avisos de ${m.name}`} onChange={(v) => { update((d) => { d.locs[m.key] = v; }); toast(v ? `Avisos de ${m.name} activados` : `Avisos de ${m.name} apagados`); }} />
         </Between>
       ))}
       <T v="small">Cada cuidador decide si comparte su llegada. Solo se avisa al llegar a lugares acordados; no hay rastreo continuo.</T>

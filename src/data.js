@@ -1,5 +1,6 @@
 // Datos de ejemplo y utilidades de fechas.
 // En la fase 2 estos datos vivirán en Supabase; por ahora se guardan en el teléfono.
+import { MORE_ACTS, MORE_MATS } from './library';
 
 export const KIDS = {
   sofi: {
@@ -34,19 +35,20 @@ export const MEMBERS = [
 ];
 export const caregiverOf = (kidK) => MEMBERS.find((m) => m.role === 'caregiver' && m.kid === kidK);
 
-export const MATS = {
+const BASE_MATS = {
   calcetines: 'Calcetines', cucharas: 'Cucharas', ollas: 'Ollas', almohadas: 'Almohadas', cobija: 'Cobija',
   harina: 'Harina', sal: 'Sal', agua: 'Agua', vasos: 'Vasos', cinta: 'Cinta adhesiva', linterna: 'Linterna',
   papel: 'Papel', crayones: 'Crayones', pasta: 'Pasta seca', cuerda: 'Cordón', tapas: 'Tapas de botella',
   caja: 'Caja de cartón', tijeras: 'Tijeras',
 };
+export const MATS = { ...BASE_MATS, ...MORE_MATS };
 
 export const SKILLS = {
   motricidad: ['Motricidad', 'leaf'], logica: ['Lógica', 'sky'], lenguaje: ['Lenguaje', 'amber'],
   creatividad: ['Creatividad', 'berry'], calma: ['Calma', 'sky'],
 };
 
-export const ACTS = [
+const BASE_ACTS = [
   { id: 1, t: 'Memoria de calcetines', mats: ['calcetines'], age: [2, 5], min: 10, sk: 'logica', energy: 'Tranquila', why: 'Discriminación visual, emparejar y contar.', steps: ['Junta 6 a 10 pares de calcetines y revuélvelos en el piso.', 'Pídele que encuentre los pares, uno por uno.', 'Sube el reto: escondan un calcetín de cada par por la sala.', 'Cierra contando juntos cuántos pares encontraron.'] },
   { id: 2, t: 'Orquesta de cocina', mats: ['ollas', 'cucharas'], age: [1, 6], min: 15, sk: 'creatividad', energy: 'Movida', why: 'Ritmo, atención auditiva y turnos.', steps: ['Pon boca abajo 3 ollas de tamaños distintos.', 'Prueben qué suena más grave y más agudo.', 'Tú marcas un ritmo de 3 golpes y tu hijo lo repite.', 'Cambien los papeles: él dirige y tú repites.'] },
   { id: 3, t: 'Fuerte de almohadas', mats: ['almohadas', 'cobija'], age: [2, 9], min: 25, sk: 'creatividad', energy: 'Movida', why: 'Planeación, equilibrio y juego simbólico.', steps: ['Usen sillas o el sillón como paredes.', 'Cubran con la cobija y refuercen con almohadas.', 'Decidan juntos qué es: castillo, cueva o nave.', 'Lean o cuenten un cuento adentro para cerrar.'] },
@@ -60,6 +62,8 @@ export const ACTS = [
   { id: 11, t: 'Trasvasar agua', mats: ['agua', 'vasos', 'cucharas'], age: [1, 4], min: 15, sk: 'calma', energy: 'Tranquila', why: 'Concentración y control del movimiento.', steps: ['Pon una toalla en la mesa y dos vasos, uno con agua.', 'Pásenla con la cuchara de un vaso al otro.', 'Marquen con cinta hasta dónde llenar.', 'Al final, que ayude a secar todo.'] },
   { id: 12, t: 'Búsqueda del tesoro', mats: ['papel', 'crayones'], age: [5, 10], min: 25, sk: 'logica', energy: 'Movida', why: 'Lectura, deducción y orientación.', steps: ['Escribe o dibuja 5 pistas que lleven de un lugar a otro.', 'Esconde la última junto a un pequeño premio.', 'Si aún no lee, usa dibujos en las pistas.', 'Para cerrar, que esconda pistas para ti.'] },
 ];
+// Las 12 originales siempre están; el resto se desbloquea mes con mes (ver library.js).
+export const ACTS = [...BASE_ACTS.map((a) => ({ unlock: -1, ...a })), ...MORE_ACTS];
 
 export const RECIPES = [
   { id: 1, t: 'Hot cakes de plátano', by: 'Mamá', age: '1+', alg: ['Huevo'], min: 15, ing: ['1 plátano maduro', '2 huevos', '1/2 taza de avena'], steps: ['Machaca el plátano.', 'Mezcla con huevos y avena.', 'Cocina porciones pequeñas en sartén a fuego medio.'] },
@@ -129,10 +133,11 @@ export const now = () => { const d = new Date(); return `${String(d.getHours()).
 export const todayIdx = (today.getDay() + 6) % 7; // 0 = lunes
 export const money = (n) => '$' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
-const DAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+export const DAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+export const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 export const dayShort = (d) => DAYS[d.getDay()].slice(0, 3);
 export const dayLong = (d) => `${DAYS[d.getDay()]} ${d.getDate()}`;
+export const todayKey = () => dk(new Date());
 export const dateLong = (d) => `${DAYS[d.getDay()]} ${d.getDate()} de ${MONTHS[d.getMonth()]}`;
 
 const E = (n, time, t, kid, tag) => ({ d: dk(addD(n)), time, t, kid, tag });
@@ -157,7 +162,7 @@ export const EXT_EVENTS = [
 export function fresh() {
   const k = (i) => evKey(BASE_EVENTS[i]);
   return {
-    v: 1, kid: 'sofi', role: 'padres', view: 'hoy', jtab: 'act', ctab: 'menu', skill: null,
+    v: 1, kid: 'sofi', role: 'padres', view: 'hoy', jtab: 'act', ctab: 'menu', skill: null, afilter: 'all', favs: [], since: dk(today).slice(0, 7),
     have: ['calcetines', 'cucharas', 'ollas', 'vasos', 'papel', 'crayones', 'cinta', 'agua'],
     tasks: [
       { id: 1, t: 'Comprar pañales talla 4', who: 'yo', done: false },
@@ -245,7 +250,9 @@ export const isOwn = (S) => !!(S.cloud || S.blank);
 export const me = (S) => S.me || (isCG(S) ? 'carmen' : 'yo');
 
 export function dayEvents(S, d) {
-  const fam = [...BASE_EVENTS.filter((e) => e.d === d), ...S.myevents.filter((e) => e.d === d)]
+  const gone = S.delev || [];
+  const fam = [...BASE_EVENTS.filter((e) => e.d === d).map((e) => ({ ...e, base: true })), ...S.myevents.filter((e) => e.d === d)]
+    .filter((e) => !gone.includes(evKey(e)))
     .map((e) => ({ ...e, src: 'familia', end: e.end || addMin(e.time, 60) }));
   const ext = (S.extevents || EXT_EVENTS).filter((e) => e.d === d && S.cal[e.src] && S.cal[e.src].on);
   const all = [...fam, ...ext].sort((a, b) => mins(a.time) - mins(b.time));
@@ -264,3 +271,31 @@ export const todayRecipe = (S) => {
 };
 export const camsOf = (S) => S.cams || CAMS;
 export const camEventsOf = (S) => S.camev || CAM_EVENTS;
+
+// ---------- Bitácora: cada registro tiene fecha (d) y hora (t) ----------
+// Los registros antiguos no traían fecha: se deduce de su id (que era la hora de creación) o se asume hoy.
+export const feedDay = (x) => x.d || (x.id > 1e12 ? dk(new Date(x.id)) : dk(today));
+export const feedSort = (a, b) => (feedDay(a) + a.t).localeCompare(feedDay(b) + b.t);
+// Crea un registro de bitácora con los datos de quien lo hace y del momento actual.
+export const mkFeed = (S, o) => ({ id: Date.now(), who: me(S), kid: kidKey(S), d: todayKey(), t: now(), lvl: 'info', ...o });
+
+// ---------- Actividades favoritas y rotación mensual ----------
+export const monthOf = (d) => dk(d).slice(0, 7); // '2026-10'
+const monthNum = (k) => Number(k.slice(0, 4)) * 12 + Number(k.slice(5, 7)) - 1;
+// Meses transcurridos desde que la familia empezó a usar la app (0 = el primer mes).
+export const monthsUsed = (S) => Math.max(0, monthNum(monthOf(new Date())) - monthNum(S.since || monthOf(new Date())));
+export const isNewAct = (a, S) => a.unlock >= 0 && a.unlock === monthsUsed(S);
+export const unlockedActs = (S) => ACTS.filter((a) => a.unlock <= monthsUsed(S));
+export const lockedCount = (S) => ACTS.filter((a) => a.unlock > monthsUsed(S)).length;
+export const favsOf = (S) => S.favs || [];
+export const monthName = (d) => MONTHS[d.getMonth()];
+
+// Pendientes: primero los abiertos (con fecha límite más próxima antes), al final los hechos.
+export const tasksSorted = (tasks) => [...tasks].sort((a, b) => {
+  if (a.done !== b.done) return a.done ? 1 : -1;
+  if (a.due && b.due) return a.due.localeCompare(b.due);
+  if (a.due) return -1;
+  if (b.due) return 1;
+  return (Number(b.id) || 0) - (Number(a.id) || 0);
+});
+export const dayOfYear = (d = new Date()) => Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);

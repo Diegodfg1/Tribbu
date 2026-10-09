@@ -29,6 +29,16 @@ Al abrir Tribbu por primera vez eliges cómo probarla (sin cuenta, todo se guard
 
 Puedes cambiar de modo desde **Familia → Cuenta y modo**. Cada modo guarda sus datos por separado.
 
+## Qué puedes hacer en cada pestaña
+
+- **Hoy:** idea de actividad del día (cambia cada día), aviso de actividades nuevas del mes, tus pendientes, registro rápido y resumen del día.
+- **Jugar:** actividades sin pantalla con lo que hay en casa. Toca el corazón ♡ para guardar **favoritas**. Cada mes se desbloquean actividades **nuevas** (con etiqueta «Nueva»); para probarlo sin esperar un mes hay un botón «Solo para pruebas: avanzar un mes» al final de la lista.
+- **Agenda:** eventos del día que elijas (navega por semanas o salta a cualquier fecha con el calendario). **+ Agregar evento** y **+ Agregar pendiente** abren una pantalla aparte; tocando un evento puedes editarlo o eliminarlo.
+- **Cocina:** menú de la semana (tú eliges la receta de cada día), compras, tus recetas y **Ideas nutritivas**: recetas pensadas con las recomendaciones del Plato del Bien Comer y de la OMS, que respetan la edad y las alergias del niño y traen una nota de seguridad al comer.
+- **Familia:** **bitácora por día y por niño** (navega a cualquier fecha), ficha de emergencia, documentos y personas.
+- **Registro rápido** (Comió, Siesta, Baño…): puedes poner **cuándo ocurrió**, con fecha y hora.
+- Cada acción importante muestra un aviso verde arriba de la pantalla.
+
 ## Activar cuentas e invitaciones (Supabase, gratis)
 
 Sin esto la app funciona igual, pero solo en **modo demostración** (datos de ejemplo en tu teléfono). Con esto, cada persona tiene su cuenta y los datos se comparten entre teléfonos. Toma unos 15 minutos y no cuesta nada.
