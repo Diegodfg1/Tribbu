@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Image, Pressable, View } from 'react-native';
-import { AISLES, KIDS, MENU, aisleOf, allRecipes, isCG, kidKey, todayIdx } from '../data';
+import { AISLES, KIDS, MENU, aisleOf, allRecipes, isCG, kidKey, menuOf, todayIdx, todayRecipe } from '../data';
 import { RecipeSheet, UploadRecipeSheet } from '../sheets';
 import { useStore } from '../store';
 import { useTheme } from '../theme';
-import { Between, Btn, Card, Check, Field, Pill, Row, Seg, T, useUI } from '../ui';
+import { Between, Btn, Card, Check, Field, Pill, Row, Seg, SheetHead, T, useUI } from '../ui';
 
 function RecipeRow({ r }) {
   const c = useTheme();
@@ -37,7 +37,7 @@ function useMenuToShop() {
     const recs = allRecipes(S);
     const have = new Set(S.shop.map((x) => x.t.toLowerCase()));
     const fresh = [];
-    MENU.forEach(([, id]) => {
+    menuOf(S).forEach(([, id]) => {
       const r = recs.find((x) => x.id === id);
       if (!r) return;
       r.ing.forEach((i) => {
@@ -52,19 +52,39 @@ function useMenuToShop() {
   };
 }
 
+// Hoja para elegir la receta de un día del menú.
+function PickRecipeSheet({ idx }) {
+  const { S, update } = useStore();
+  const { closeSheet, toast } = useUI();
+  const recs = allRecipes(S);
+  const day = menuOf(S)[idx][0];
+  const set = (id) => {
+    update((d) => { d.menu = d.menu || JSON.parse(JSON.stringify(MENU)); d.menu[idx][1] = id; });
+    closeSheet(); toast(id == null ? 'Menú actualizado' : 'Receta agregada al menú');
+  };
+  return (
+    <>
+      <SheetHead title={`Menú del ${day}`} />
+      {recs.length ? recs.map((r) => <Btn key={r.id} kind="ghost" onPress={() => set(r.id)}>{r.t}</Btn>)
+        : <T>Todavía no hay recetas. Agrega una en la pestaña Recetas y vuelve aquí a ponerla en el menú.</T>}
+      {menuOf(S)[idx][1] != null ? <Btn kind="ghost" onPress={() => set(null)}>Quitar del menú</Btn> : null}
+    </>
+  );
+}
+
 function Menu() {
   const c = useTheme();
   const { S } = useStore();
+  const { openSheet } = useUI();
   const gen = useMenuToShop();
   const recs = allRecipes(S);
   if (isCG(S)) {
     const k = KIDS[kidKey(S)];
-    const m = MENU[todayIdx] || MENU[0];
-    const r = recs.find((x) => x.id === m[1]);
+    const r = todayRecipe(S);
     return (
       <>
         <T v="label">Hoy toca</T>
-        {r ? <RecipeRow r={r} /> : null}
+        {r ? <RecipeRow r={r} /> : <Card><T v="small">Hoy no hay una comida registrada en el menú.</T></Card>}
         <Card>
           <T v="h3">{`Merienda y cena de ${k.name}`}</T>
           {k.routine.filter((x) => /Merienda|Cena/.test(x[0])).map(([a, b]) => (
@@ -74,6 +94,7 @@ function Menu() {
       </>
     );
   }
+  const menu = menuOf(S);
   return (
     <>
       <Between>
@@ -81,19 +102,21 @@ function Menu() {
         <Btn sm kind="sun" onPress={gen}>Armar lista de compras</Btn>
       </Between>
       <Card style={{ gap: 0 }}>
-        {MENU.map(([d, id], i) => {
-          const r = recs.find((x) => x.id === id);
+        {menu.map(([d, id], i) => {
+          const r = id != null ? recs.find((x) => x.id === id) : null;
           const today = i === todayIdx;
           return (
-            <Row key={d} style={{ paddingVertical: 9, borderTopWidth: i ? 1 : 0, borderTopColor: c.line }}>
-              <T v="bold" style={{ width: 44 }} color={today ? c.berry : c.ink}>{d}</T>
-              <T style={{ flex: 1 }}>{r ? r.t : ''}</T>
-              {today ? <Pill tone="sun">Hoy</Pill> : null}
-            </Row>
+            <Pressable key={d} onPress={() => openSheet(<PickRecipeSheet idx={i} />)} accessibilityRole="button" accessibilityLabel={`Elegir receta del ${d}`}>
+              <Row style={{ paddingVertical: 9, borderTopWidth: i ? 1 : 0, borderTopColor: c.line }}>
+                <T v="bold" style={{ width: 44 }} color={today ? c.berry : c.ink}>{d}</T>
+                <T style={{ flex: 1 }} color={r ? c.ink : c.inkSoft}>{r ? r.t : 'Toca para elegir una receta'}</T>
+                {today ? <Pill tone="sun">Hoy</Pill> : null}
+              </Row>
+            </Pressable>
           );
         })}
       </Card>
-      <T v="small">El botón agrega a Compras los ingredientes de las recetas del menú, ordenados por pasillo.</T>
+      <T v="small">Toca un día para elegir la receta. El botón agrega a Compras los ingredientes de las recetas del menú, ordenados por pasillo.</T>
     </>
   );
 }

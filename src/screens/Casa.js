@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { CAMS, CAM_EVENTS, KIDS, MEMBERS, PARENTS, addD, dayShort, isCloud, kidKey, me, money, nameOf, now, shortOf } from '../data';
+import { KIDS, MEMBERS, PARENTS, addD, arrivalsOf, camEventsOf, camsOf, dayShort, isBlank, isCloud, kidKey, me, money, nameOf, now, shortOf } from '../data';
 import { BoardScreen, LiveCamSheet } from '../sheets';
 import { useStore } from '../store';
 import { F, useTheme } from '../theme';
@@ -11,36 +11,60 @@ import { DocRow } from './Familia';
 // Custodia semanal de ejemplo (M = mamá, P = papá), empezando hoy.
 const CUSTODY = ['M', 'M', 'P', 'P', 'M', 'M', 'P'];
 
+const CAM_TYPES = [['Monitor de bebé', 'Se abre en la app del fabricante'], ['Cámara Wi-Fi', 'Conectada vía Google Home']];
+const CAM_ALERTS = ['Movimiento detectado', 'Llanto detectado durante 2 min', 'Persona detectada', 'Sonido fuerte detectado'];
+
 function Cameras() {
   const c = useTheme();
   const { S, update } = useStore();
   const { openSheet, toast } = useUI();
-  if (!CAMS.length) return null;
+  const [name, setName] = useState('');
+  const [type, setType] = useState(CAM_TYPES[0][0]);
+  if (isCloud(S)) return null; // aún no hay cámaras reales
+  const blank = isBlank(S);
+  const cams = camsOf(S);
+  const events = camEventsOf(S);
+  const nameOfCam = (id) => { const x = cams.find((y) => y.id === id); return x ? x.n : 'Cámara'; };
+  const addCam = () => {
+    if (!name.trim()) { toast('Escribe el nombre de la cámara'); return; }
+    update((d) => { d.cams.push({ id: `c${Date.now()}`, n: name.trim(), type, via: CAM_TYPES.find((x) => x[0] === type)[1], sensor: null }); });
+    setName('');
+  };
   return (
     <Card>
-      <Between><T v="h3">Hogar · cámaras</T><T v="label">{`${CAMS.length} conectadas`}</T></Between>
-      {CAMS.map((cam, i) => (
+      <Between><T v="h3">Hogar · cámaras</T><T v="label">{`${cams.length} conectadas`}</T></Between>
+      {blank ? <T v="small">Simulación: aquí pruebas cómo se vería. La conexión real con Google Home, HomeKit o Matter llega en una fase posterior.</T> : null}
+      {cams.map((cam, i) => (
         <View key={cam.id} style={{ gap: 6, paddingTop: i ? 10 : 0, borderTopWidth: i ? 1 : 0, borderTopColor: c.line }}>
           <Between style={{ alignItems: 'flex-start' }}>
             <View style={{ flex: 1 }}><T v="bold">{cam.n}</T><T v="small">{`${cam.type} · ${cam.via}`}</T></View>
             {cam.sensor ? <Pill tone="leaf">{cam.sensor}</Pill> : null}
           </Between>
-          <Row>
+          <Row wrap>
             <Btn sm onPress={() => openSheet(<LiveCamSheet cam={cam} />)}>Ver en vivo</Btn>
             <Btn sm kind="ghost" onPress={() => toast('En la app real abre la app del fabricante de la cámara')}>Abrir app de la cámara</Btn>
+            {blank ? <Btn sm kind="ghost" onPress={() => update((d) => { d.camev.unshift({ cam: cam.id, t: now(), txt: CAM_ALERTS[Math.floor(Math.random() * CAM_ALERTS.length)] }); })}>Simular aviso</Btn> : null}
           </Row>
         </View>
       ))}
+      {blank ? (
+        <View style={{ gap: 8, paddingTop: 10, borderTopWidth: cams.length ? 1 : 0, borderTopColor: c.line }}>
+          <T v="label">Agregar cámara (simulación)</T>
+          <Field placeholder="Nombre, p. ej. Cuarto de Sofi" value={name} onChangeText={setName} />
+          <Row gap={6} wrap>{CAM_TYPES.map(([t]) => <Chip key={t} on={type === t} onPress={() => setType(t)}>{t}</Chip>)}</Row>
+          <Btn sm kind="ghost" style={{ alignSelf: 'flex-start' }} onPress={addCam}>Agregar cámara</Btn>
+        </View>
+      ) : null}
       <T v="label" style={{ marginTop: 4 }}>Avisos de hoy</T>
-      {CAM_EVENTS.map((e, i) => (
+      {events.length ? events.map((e, i) => (
         <Between key={i}>
-          <T v="small" color={c.ink} style={{ flex: 1 }}>{`${e.t}  ${CAMS.find((x) => x.id === e.cam).n}: ${e.txt}`}</T>
+          <T v="small" color={c.ink} style={{ flex: 1 }}>{`${e.t}  ${nameOfCam(e.cam)}: ${e.txt}`}</T>
           <Btn sm kind="ghost" onPress={() => {
-            update((d) => { d.feed.unshift({ id: Date.now(), who: me(S), kid: Object.keys(KIDS)[0], kind: 'Cámara', txt: `${CAMS.find((x) => x.id === e.cam).n}: ${e.txt} (${e.t}).`, t: now(), lvl: 'info', parentsOnly: true }); });
+            update((d) => { d.feed.unshift({ id: Date.now(), who: me(S), kid: Object.keys(KIDS)[0], kind: 'Cámara', txt: `${nameOfCam(e.cam)}: ${e.txt} (${e.t}).`, t: now(), lvl: 'info', parentsOnly: true }); });
             toast('Agregado a la bitácora, solo para papás');
           }}>A bitácora</Btn>
         </Between>
-      ))}
+      )) : <T v="small">{blank ? 'Sin avisos. Usa «Simular aviso» en una cámara.' : 'Sin avisos.'}</T>}
       <Between>
         <T v="small" style={{ flex: 1 }}>Registrar avisos de cámaras en la bitácora automáticamente (solo visibles para papás)</T>
         <Toggle value={S.camlog} label="Registrar avisos automáticamente" onChange={(v) => update((d) => { d.camlog = v; })} />
@@ -169,9 +193,27 @@ function Expenses() {
 
 function Arrivals() {
   const { S, update } = useStore();
-  // Los avisos de llegada reales (con ubicación) aún no existen: solo se muestran en la demostración.
+  const { toast } = useUI();
+  const [who, setWho] = useState('');
+  const [place, setPlace] = useState('Casa');
+  // Los avisos de llegada reales (con ubicación) aún no existen: se prueban con simulación.
   if (isCloud(S)) return null;
+  const blank = isBlank(S);
   const care = MEMBERS.filter((m) => m.role === 'caregiver');
+  if (blank && !care.length) {
+    return (
+      <Card>
+        <T v="h3">Avisos de llegada</T>
+        <T v="small">Agrega un cuidador en Familia para probar los avisos de llegada.</T>
+      </Card>
+    );
+  }
+  const sel = who && care.some((m) => m.key === who) ? who : (care[0] && care[0].key);
+  const simulate = () => {
+    if (!S.locs[sel]) { toast(`Activa primero los avisos de ${nameOf(sel)}`); return; }
+    update((d) => { d.arr.unshift({ who: sel, place: place.trim() || 'Casa', t: now() }); });
+    toast('Aviso de llegada simulado. Míralo en Hoy');
+  };
   return (
     <Card>
       <T v="h3">Avisos de llegada</T>
@@ -182,6 +224,14 @@ function Arrivals() {
         </Between>
       ))}
       <T v="small">Cada cuidador decide si comparte su llegada. Solo se avisa al llegar a lugares acordados; no hay rastreo continuo.</T>
+      {blank ? (
+        <View style={{ gap: 8, paddingTop: 8 }}>
+          <T v="label">Probar un aviso (simulación)</T>
+          <Row gap={6} wrap>{care.map((m) => <Chip key={m.key} on={sel === m.key} onPress={() => setWho(m.key)}>{m.name}</Chip>)}</Row>
+          <Field placeholder="Lugar, p. ej. Kínder Montessori" value={place} onChangeText={setPlace} />
+          <Btn sm kind="ghost" style={{ alignSelf: 'flex-start' }} onPress={simulate}>Simular llegada</Btn>
+        </View>
+      ) : null}
     </Card>
   );
 }

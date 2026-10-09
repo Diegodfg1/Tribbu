@@ -1,20 +1,23 @@
-// Gestión de la familia (solo papás): invitaciones, cuidadores y fichas de los niños. Y la tarjeta de cuenta.
+// Gestión de la familia (solo papás): invitaciones o altas, cuidadores y fichas de los niños. Y la tarjeta de cuenta.
+// Usa las acciones de `useStore().family`, que existen en la nube y en el modo en blanco.
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Share, View } from 'react-native';
+import { Share, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { KIDS, MEMBERS, isCloud } from '../data';
+import { KIDS, MEMBERS, isBlank, isCloud } from '../data';
 import { useAuth } from '../session';
 import { useStore } from '../store';
-import { friendly, supabase } from '../supabase';
+import { friendly } from '../supabase';
 import { F, useTheme } from '../theme';
-import { Between, Btn, Card, Chip, Field, Item, Pill, Row, Seg, SheetHead, T, useUI } from '../ui';
+import { Between, Btn, Card, Chip, Field, Item, Pill, Row, Seg, SheetHead, T, confirmAction, useUI } from '../ui';
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-// ---------- Invitar ----------
+// ---------- Invitar / agregar ----------
 function InviteSheet({ onDone }) {
   const c = useTheme();
-  const { familyId } = useStore();
+  const { family } = useStore();
+  const { closeSheet, toast } = useUI();
+  const local = family.local;
   const [role, setRole] = useState('caregiver');
   const [name, setName] = useState('');
   const [kid, setKid] = useState(Object.keys(KIDS)[0]);
@@ -27,13 +30,11 @@ function InviteSheet({ onDone }) {
     if (!name.trim()) { setMsg('Escribe cómo se llama la persona (p. ej. Abuela Carmen).'); return; }
     if (role === 'caregiver' && (!HHMM.test(from) || !HHMM.test(to) || from >= to)) { setMsg('Escribe el horario como 14:00 y que la hora de inicio sea antes que la de fin.'); return; }
     setBusy(true); setMsg(null);
-    const { data, error } = await supabase.rpc('create_invite', {
-      p_family: familyId, p_role: role, p_name: name.trim(),
-      p_kid: role === 'caregiver' ? kid : null, p_from: role === 'caregiver' ? from : '00:00', p_to: role === 'caregiver' ? to : '23:59',
-    });
-    setBusy(false);
-    if (error) { setMsg(friendly(error)); return; }
-    setCode(data); onDone && onDone();
+    try {
+      const res = await family.invite({ role, name: name.trim(), kid, from, to });
+      if (local) { closeSheet(); toast(`${name.trim()} agregada. Usa «Ver como» arriba para ver su vista`); return; }
+      setCode(res); onDone && onDone();
+    } catch (e) { setMsg(friendly(e)); } finally { setBusy(false); }
   };
   if (code) {
     const text = `Te invito a nuestra familia en Tribbu. Instala la app, crea tu cuenta y escribe este código de invitación: ${code}\n(El código vence en 7 días.)`;
@@ -51,7 +52,7 @@ function InviteSheet({ onDone }) {
   }
   return (
     <>
-      <SheetHead title="Invitar a la familia" />
+      <SheetHead title={local ? 'Agregar persona' : 'Invitar a la familia'} />
       <Seg full options={[['caregiver', 'Cuidador'], ['parent', 'Papá o mamá']]} value={role} onChange={setRole} />
       <T v="small">{role === 'caregiver' ? 'Abuelos, niñera, tíos o hermanos. Solo verán lo que corresponde a su turno y al niño que cuidan.' : 'Tendrá los mismos permisos que tú.'}</T>
       <Field placeholder="Nombre, p. ej. Abuela Carmen" value={name} onChangeText={setName} />
@@ -68,7 +69,7 @@ function InviteSheet({ onDone }) {
         </>
       ) : null}
       {msg ? <T v="small" color={c.berry}>{msg}</T> : null}
-      <Btn kind="sun" disabled={busy} onPress={create}>{busy ? 'Creando…' : 'Crear invitación'}</Btn>
+      <Btn kind="sun" disabled={busy} onPress={create}>{busy ? 'Un momento…' : local ? 'Agregar' : 'Crear invitación'}</Btn>
     </>
   );
 }
@@ -76,7 +77,7 @@ function InviteSheet({ onDone }) {
 // ---------- Turno de un cuidador ----------
 function ShiftSheet({ m }) {
   const c = useTheme();
-  const { familyId, refresh } = useStore();
+  const { family } = useStore();
   const { closeSheet, toast } = useUI();
   const [kid, setKid] = useState(m.kid);
   const [from, setFrom] = useState(m.from);
@@ -84,9 +85,8 @@ function ShiftSheet({ m }) {
   const [msg, setMsg] = useState(null);
   const save = async () => {
     if (!HHMM.test(from) || !HHMM.test(to) || from >= to) { setMsg('Escribe el horario como 14:00 y que la hora de inicio sea antes que la de fin.'); return; }
-    const { error } = await supabase.from('members').update({ kid_key: kid, shift_from: from, shift_to: to }).eq('family_id', familyId).eq('person_key', m.key);
-    if (error) { setMsg(friendly(error)); return; }
-    await refresh(); closeSheet(); toast('Turno actualizado');
+    try { await family.updateMember(m.key, { kid, from, to }); } catch (e) { setMsg(friendly(e)); return; }
+    closeSheet(); toast('Turno actualizado');
   };
   return (
     <>
@@ -106,7 +106,7 @@ function ShiftSheet({ m }) {
 // ---------- Ficha de un niño ----------
 function KidSheet({ kk }) {
   const c = useTheme();
-  const { familyId, refresh } = useStore();
+  const { family } = useStore();
   const { closeSheet, toast } = useUI();
   const k = KIDS[kk] || { name: '', age: '', allergy: '', blood: '', ped: '', ins: '', routine: [] };
   const [f, setF] = useState({
@@ -123,9 +123,8 @@ function KidSheet({ kk }) {
     });
     const key = kk || `k${Math.max(0, ...Object.keys(KIDS).map((x) => Number(x.slice(1)) || 0)) + 1}`;
     const data = { name: f.name.trim(), age: Number(f.age), allergy: f.allergy.trim() || 'Ninguna conocida', blood: f.blood.trim() || 'Sin registrar', ped: f.ped.trim() || 'Sin registrar', ins: f.ins.trim() || 'Sin registrar', routine };
-    const { error } = await supabase.from('kids').upsert({ family_id: familyId, key, data }, { onConflict: 'family_id,key' });
-    if (error) { setMsg(friendly(error)); return; }
-    await refresh(); closeSheet(); toast('Ficha guardada');
+    try { await family.saveKid(key, data); } catch (e) { setMsg(friendly(e)); return; }
+    closeSheet(); toast('Ficha guardada');
   };
   return (
     <>
@@ -149,30 +148,24 @@ function KidSheet({ kk }) {
 // ---------- Tarjeta de familia (papás) ----------
 export function FamilyAdmin() {
   const c = useTheme();
-  const { familyId, refresh } = useStore();
+  const { family } = useStore();
   const { openSheet, toast } = useUI();
+  const local = family.local;
   const [invites, setInvites] = useState([]);
-  const loadInvites = useCallback(async () => {
-    const { data } = await supabase.from('invites').select('*').eq('family_id', familyId).is('used_at', null).gt('expires_at', new Date().toISOString()).order('created_at');
-    setInvites(data || []);
-  }, [familyId]);
+  const loadInvites = useCallback(async () => { setInvites(await family.listInvites()); }, [family]);
   useEffect(() => { loadInvites(); }, [loadInvites]);
 
-  const remove = (m) => Alert.alert(`¿Quitar a ${m.name}?`, 'Dejará de ver la información de la familia. Sus registros anteriores se conservan.', [
-    { text: 'Cancelar', style: 'cancel' },
-    { text: 'Quitar', style: 'destructive', onPress: async () => {
-      const { error } = await supabase.from('members').delete().eq('family_id', familyId).eq('person_key', m.key);
-      if (error) toast(friendly(error)); else { await refresh(); toast(`${m.name} ya no tiene acceso`); }
-    } },
-  ]);
-  const revoke = async (inv) => { await supabase.from('invites').delete().eq('code', inv.code); loadInvites(); };
+  const remove = (m) => confirmAction(`¿Quitar a ${m.name}?`, 'Dejará de ver la información de la familia. Sus registros anteriores se conservan.', 'Quitar', async () => {
+    try { await family.removeMember(m.key); toast(`${m.name} ya no tiene acceso`); } catch (e) { toast(friendly(e)); }
+  });
+  const revoke = async (inv) => { await family.revokeInvite(inv.code); loadInvites(); };
 
   return (
     <>
       <Card style={{ gap: 0 }}>
         <Between style={{ marginBottom: 6 }}>
           <T v="h3">Personas de la familia</T>
-          <Btn sm kind="sun" onPress={() => openSheet(<InviteSheet onDone={loadInvites} />)}>Invitar</Btn>
+          <Btn sm kind="sun" onPress={() => openSheet(<InviteSheet onDone={loadInvites} />)}>{local ? 'Agregar persona' : 'Invitar'}</Btn>
         </Between>
         {MEMBERS.map((m, i) => (
           <Item key={m.key} first={!i}>
@@ -189,6 +182,8 @@ export function FamilyAdmin() {
                   <Btn sm kind="ghost" onPress={() => openSheet(<ShiftSheet m={m} />)}>Turno</Btn>
                   <Btn sm kind="ghost" onPress={() => remove(m)}>Quitar</Btn>
                 </Row>
+              ) : m.role === 'parent' && local && MEMBERS.filter((x) => x.role === 'parent').length > 1 ? (
+                <Btn sm kind="ghost" onPress={() => remove(m)}>Quitar</Btn>
               ) : null}
             </Between>
           </Item>
@@ -230,13 +225,15 @@ export function FamilyAdmin() {
 
 // ---------- Cuenta ----------
 export function AccountCard() {
-  const { S } = useStore();
+  const { S, wipe } = useStore();
   const auth = useAuth();
   if (!auth) return null;
   const cloud = isCloud(S);
+  const blank = isBlank(S);
+  const wipeAll = () => confirmAction('¿Borrar todo?', 'Se borra lo que cargaste en este teléfono y empiezas de nuevo.', 'Borrar todo', wipe);
   return (
     <Card>
-      <T v="h3">Cuenta</T>
+      <T v="h3">Cuenta y modo</T>
       {cloud ? (
         <>
           <T v="small">{`Sesión iniciada como ${auth.user ? auth.user.email : ''}.`}</T>
@@ -244,10 +241,11 @@ export function AccountCard() {
         </>
       ) : (
         <>
-          <T v="small">Estás en el modo demostración: los datos son de ejemplo y se guardan solo en este teléfono.</T>
-          {auth.canAccount
-            ? <Btn kind="sun" sm style={{ alignSelf: 'flex-start' }} onPress={auth.leaveDemo}>Iniciar sesión o crear cuenta</Btn>
-            : <T v="small">Las cuentas se activan al conectar Supabase (ver README).</T>}
+          <T v="small">{blank
+            ? 'Modo de prueba en blanco: lo que cargas se guarda solo en este teléfono. Cambia «Ver como» arriba para comprobar qué ve cada persona.'
+            : 'Estás en la demostración: los datos son de ejemplo y se guardan solo en este teléfono.'}</T>
+          <Btn kind="ghost" sm style={{ alignSelf: 'flex-start' }} onPress={auth.leaveDemo}>{auth.canAccount ? 'Cambiar de modo o iniciar sesión' : 'Cambiar de modo'}</Btn>
+          {blank ? <Btn kind="ghost" sm style={{ alignSelf: 'flex-start' }} onPress={wipeAll}>Borrar todo y empezar de nuevo</Btn> : null}
         </>
       )}
     </Card>

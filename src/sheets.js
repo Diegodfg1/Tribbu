@@ -6,8 +6,8 @@ import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  ACTS, KIDS, MATS, MEMBERS, MENU, SKILLS, SRC, aisleOf, allRecipes, dateLong, dayEvents, dk, evKey, fromKey,
-  inShift, isCG, isCloud, kidKey, me, nameOf, now, today, todayIdx,
+  ACTS, KIDS, MATS, MEMBERS, SKILLS, SRC, addD, aisleOf, allRecipes, dateLong, dayEvents, dayShort, dk, evKey, fromKey,
+  inShift, isBlank, isCG, isCloud, kidKey, me, nameOf, now, today, todayRecipe,
 } from './data';
 import { DEMOS } from './scenes';
 import { useStore } from './store';
@@ -189,6 +189,36 @@ export function EventSheet({ k }) {
 }
 
 // ---------- Calendarios ----------
+function ExtEventForm() {
+  const { S, update } = useStore();
+  const { toast } = useUI();
+  const linked = ['google', 'outlook', 'icloud'].filter((k) => S.cal[k] && S.cal[k].on);
+  const [f, setF] = useState({ src: linked[0] || 'google', t: '', d: dk(today), time: '09:00', end: '10:00' });
+  const days = [0, 1, 2, 3, 4, 5, 6].map((n) => addD(n));
+  if (!linked.length) return <T v="small">Conecta una cuenta arriba para poder agregarle eventos de prueba.</T>;
+  const src = linked.includes(f.src) ? f.src : linked[0];
+  const add = () => {
+    if (!f.t.trim() || !/^\d{1,2}:\d{2}$/.test(f.time) || !/^\d{1,2}:\d{2}$/.test(f.end)) { toast('Escribe un título y las horas como 09:00'); return; }
+    update((d) => { d.extevents.push({ src, d: f.d, time: f.time.padStart(5, '0'), end: f.end.padStart(5, '0'), t: f.t.trim() }); });
+    setF((x) => ({ ...x, t: '' })); toast('Evento de prueba agregado. Míralo en Agenda');
+  };
+  return (
+    <>
+      <T v="label">Agregar evento a una cuenta conectada (simulación)</T>
+      <Row gap={6} wrap>{linked.map((k) => <Chip key={k} on={src === k} onPress={() => setF((x) => ({ ...x, src: k }))}>{SRC[k].n}</Chip>)}</Row>
+      <Field placeholder="Título, p. ej. Junta de trabajo" value={f.t} onChangeText={(t) => setF((x) => ({ ...x, t }))} />
+      <Row gap={6} wrap>{days.map((d) => <Chip key={dk(d)} on={f.d === dk(d)} onPress={() => setF((x) => ({ ...x, d: dk(d) }))}>{`${dayShort(d)} ${d.getDate()}`}</Chip>)}</Row>
+      <Row>
+        <Field style={{ flex: 1 }} placeholder="09:00" value={f.time} onChangeText={(time) => setF((x) => ({ ...x, time }))} keyboardType="numbers-and-punctuation" />
+        <T>a</T>
+        <Field style={{ flex: 1 }} placeholder="10:00" value={f.end} onChangeText={(end) => setF((x) => ({ ...x, end }))} keyboardType="numbers-and-punctuation" />
+      </Row>
+      <Btn sm style={{ alignSelf: 'flex-start' }} onPress={add}>Agregar evento</Btn>
+      <T v="small">Si cae a la misma hora que un evento familiar, la Agenda avisa del choque y permite pedir apoyo a un cuidador.</T>
+    </>
+  );
+}
+
 export function CalendarsSheet() {
   const c = useTheme();
   const { S, update } = useStore();
@@ -229,7 +259,8 @@ export function CalendarsSheet() {
               </View>
             );
           })}
-          <T v="small">Los cuidadores nunca ven tus calendarios vinculados. En la fase 2 se leen los calendarios reales de tu teléfono.</T>
+          {isBlank(S) ? <ExtEventForm /> : null}
+      <T v="small">Los cuidadores nunca ven tus calendarios vinculados. En la fase 2 se leen los calendarios reales de tu teléfono.</T>
           <T v="label">Llevar Tribbu a tu calendario</T>
           <T>Suscríbete desde Google, Outlook o Apple y los eventos familiares aparecerán ahí, sin compartir tu calendario de trabajo.</T>
           <View style={{ backgroundColor: c.paper2, borderWidth: 1, borderStyle: 'dashed', borderColor: c.line, borderRadius: 10, padding: 10 }}>
@@ -379,8 +410,7 @@ export function BoardScreen() {
   const { closeFull } = useUI();
   const insets = useSafeAreaInsets();
   const all = dayEvents(S, dk(today)).fam;
-  const m = MENU[todayIdx] || MENU[0];
-  const r = allRecipes(S).find((x) => x.id === m[1]);
+  const r = todayRecipe(S);
   const Blk = ({ label, children }) => (
     <View style={{ borderTopWidth: 3, borderTopColor: c.ink, paddingTop: 8, gap: 4 }}><T v="label">{label}</T>{children}</View>
   );
@@ -396,7 +426,7 @@ export function BoardScreen() {
         })}
       </Blk>
       <Blk label="Hoy">{all.length ? all.map((e, i) => <Big key={i}>{`${e.time}  ${e.t}`}</Big>) : <Big>Sin eventos</Big>}</Blk>
-      <Blk label="Comida"><Big>{r ? r.t : 'Lentejas con arroz'}</Big></Blk>
+      <Blk label="Comida"><Big>{r ? r.t : 'Sin menú registrado hoy'}</Big></Blk>
       <Blk label="Puntos de la semana"><Big>{Object.keys(KIDS).map((k) => `${KIDS[k].name} ${S.pts[k] || 0}`).join(' · ')}</Big></Blk>
       <T v="small">Pensado para una tablet fija en la pared. Muestra solo lo que cualquier persona en casa puede ver.</T>
     </View>

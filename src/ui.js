@@ -1,9 +1,19 @@
 import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
 import {
-  KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View,
+  Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { F, tone, useTheme } from './theme';
+
+// Pregunta de confirmación (en el teléfono es una alerta; en la web, el cuadro del navegador).
+export function confirmAction(title, message, okLabel, onOk) {
+  if (Platform.OS === 'web') {
+    // eslint-disable-next-line no-undef
+    if (typeof window !== 'undefined' && window.confirm(`${title}\n\n${message}`)) onOk();
+    return;
+  }
+  Alert.alert(title, message, [{ text: 'Cancelar', style: 'cancel' }, { text: okLabel, style: 'destructive', onPress: onOk }]);
+}
 
 // ---------- Texto ----------
 export function T({ v = 'body', color, style, children, ...p }) {

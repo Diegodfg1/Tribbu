@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { ACTS, ARRIVALS, KIDS, SHIFT, caregiverOf, dateLong, dayEvents, dk, evKey, inShift, isCG, kidKey, nameOf, today } from '../data';
+import { ACTS, KIDS, SHIFT, arrivalsOf, caregiverOf, dateLong, dayEvents, dk, evKey, inShift, isCG, kidKey, nameOf, today } from '../data';
 import { ActCard, PinIcon, SunMark, TaskRow } from '../parts';
 import { DEMOS } from '../scenes';
 import { ActivitySheet, BoardScreen, EventSheet, LogSheet } from '../sheets';
@@ -97,7 +97,7 @@ export default function Hoy() {
   }
 
   const evs = dayEvents(S, dk(today)).fam.filter((e) => e.kid === kk);
-  const arr = ARRIVALS.filter((a) => S.locs[a.who]);
+  const arr = arrivalsOf(S).filter((a) => S.locs[a.who]);
   const summarize = async () => {
     setBusy(true);
     const s = await summarizeDay(S);

@@ -4,15 +4,16 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts, Baloo2_700Bold, Baloo2_800ExtraBold } from '@expo-google-fonts/baloo-2';
 import { AtkinsonHyperlegible_400Regular, AtkinsonHyperlegible_700Bold } from '@expo-google-fonts/atkinson-hyperlegible';
-import { KIDS, SHIFT, isCG, isCloud, kidKey, nameOf } from './src/data';
+import { KIDS, MEMBERS, SHIFT, isBlank, isCG, isCloud, kidKey, nameOf } from './src/data';
+import { BlankStoreProvider } from './src/blankStore';
 import { CloudStoreProvider } from './src/cloudStore';
 import { AuthProvider, useAuth } from './src/session';
-import { AuthScreen, OnboardingScreen } from './src/screens/Auth';
+import { AuthScreen, OnboardingScreen, WelcomeScreen } from './src/screens/Auth';
 import { NavIcon } from './src/parts';
 import { ChatSheet } from './src/sheets';
 import { StoreProvider, useStore } from './src/store';
 import { F, useTheme } from './src/theme';
-import { Avatar, Btn, Row, Seg, T, UIProvider, useUI } from './src/ui';
+import { Avatar, Btn, Chip, Row, Seg, T, UIProvider, confirmAction, useUI } from './src/ui';
 import Agenda from './src/screens/Agenda';
 import Casa from './src/screens/Casa';
 import Cocina from './src/screens/Cocina';
@@ -33,6 +34,15 @@ function Header() {
   const kids = cg ? [SHIFT.kid] : Object.keys(KIDS);
   const cloud = isCloud(S);
   const demoCare = nameOf(SHIFT.who);
+  const blank = isBlank(S);
+  const viewAs = (key) => {
+    update((d) => {
+      d.me = key;
+      const m = d.world.members.find((x) => x.person_key === key);
+      if (m && m.role === 'caregiver' && d.view === 'casa') d.view = 'hoy';
+    });
+    toast(`Ahora ves la app como ${nameOf(key)}`);
+  };
   const setRole = (role) => {
     update((d) => { d.role = role; if (role === 'cuidador' && d.view === 'casa') d.view = 'hoy'; });
     toast(role === 'cuidador' ? `Ahora ves la app como ${demoCare}` : 'Ahora ves la app como papás');
@@ -41,8 +51,16 @@ function Header() {
     <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 10, gap: 10, backgroundColor: c.bg }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Text style={{ fontFamily: F.display, fontSize: 28, color: c.ink }}>Tribbu</Text>
-        {cloud ? null : <Seg options={[['padres', 'Papás'], ['cuidador', demoCare]]} value={S.role} onChange={setRole} />}
+        {cloud || blank ? null : <Seg options={[['padres', 'Papás'], ['cuidador', demoCare]]} value={S.role} onChange={setRole} />}
       </View>
+      {blank ? (
+        <View style={{ gap: 4 }}>
+          <T v="label">Ver como</T>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+            {MEMBERS.map((m) => <Chip key={m.key} on={S.me === m.key} onPress={() => viewAs(m.key)}>{m.name}</Chip>)}
+          </ScrollView>
+        </View>
+      ) : null}
       <Row gap={8}>
         {kids.map((k) => {
           const on = k === kidKey(S);
@@ -87,7 +105,7 @@ function TabBar({ tabs }) {
 
 function Shell() {
   const c = useTheme();
-  const { S, reset, sync } = useStore();
+  const { S, reset, sync, wipe } = useStore();
   const { openSheet, toast } = useUI();
   useEffect(() => { if (sync && sync.n) toast(sync.text); }, [sync && sync.n]);
   const tabs = tabsFor(S);
@@ -99,7 +117,11 @@ function Shell() {
       <Header />
       <ScrollView key={view + S.role} style={{ flex: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 90 }}>
         <Screen />
-        {isCloud(S) ? null : (
+        {isCloud(S) ? null : isBlank(S) ? (
+          <Btn sm kind="ghost" style={{ alignSelf: 'center', opacity: 0.6 }} onPress={() => confirmAction('¿Borrar todo?', 'Se borra lo que cargaste en este teléfono (niños, cuidadores, agenda, recetas…) y empiezas de nuevo.', 'Borrar todo', wipe)}>
+            Borrar todo y empezar de nuevo
+          </Btn>
+        ) : (
           <Btn sm kind="ghost" style={{ alignSelf: 'center', opacity: 0.6 }} onPress={() => { reset(); toast('Datos de ejemplo restablecidos'); }}>
             Reiniciar datos de ejemplo
           </Btn>
@@ -120,6 +142,7 @@ function Gate() {
   if (auth.phase === 'loading') {
     return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg }}><ActivityIndicator color={c.ink} /></View>;
   }
+  if (auth.phase === 'welcome') return <WelcomeScreen />;
   if (auth.phase === 'out') return <AuthScreen />;
   if (auth.phase === 'nofamily') return <OnboardingScreen />;
   if (auth.phase === 'ready') {
@@ -128,6 +151,13 @@ function Gate() {
       <CloudStoreProvider key={`${auth.fam.familyId}-${auth.fam.meKey}`} fam={auth.fam}>
         <UIProvider><Shell /></UIProvider>
       </CloudStoreProvider>
+    );
+  }
+  if (auth.phase === 'blank') {
+    return (
+      <BlankStoreProvider onLeave={auth.leaveDemo}>
+        <UIProvider><Shell /></UIProvider>
+      </BlankStoreProvider>
     );
   }
   return (

@@ -24,19 +24,29 @@ Prototipo de referencia (diseño y comportamiento aprobados por el dueño): http
 - Animaciones "Ver cómo se juega" en `src/scenes.js` (Animated + react-native-svg). Más adelante pueden sustituirse por archivos Rive/Lottie.
 
 ## Estado de los archivos
-**Fase 1 completa** (modo demostración, datos locales). **Fase 2 completa en código** (cuentas, familias, invitaciones, permisos, sincronización). Verificado: compila para Android e iOS (`npx expo export`); 39 pruebas de privacidad en Postgres (`supabase/tests/rls_test.sql`); recorrido de punta a punta en navegador con Postgres + PostgREST reales y un GoTrue simulado (mamá crea familia, invita a la abuela, ella entra con el código y solo ve lo que le toca). **Aún no probado con un proyecto real de Supabase ni en un teléfono con Expo Go.**
+**Fase 1 completa** (modo demostración, datos locales). **Fase 2 completa en código** (cuentas, familias, invitaciones, permisos, sincronización). Verificado: compila para Android e iOS (`npx expo export`); 39 pruebas de privacidad en Postgres (`supabase/tests/rls_test.sql`); recorrido de punta a punta en navegador con Postgres + PostgREST reales y un GoTrue simulado (mamá crea familia, invita a la abuela, ella entra con el código y solo ve lo que le toca). El modo en blanco se recorrió también de punta a punta en navegador (52 comprobaciones). **Aún no probado con un proyecto real de Supabase ni en un teléfono con Expo Go.**
 
 - `App.js`, `index.js`, `app.json`, `package.json` (Expo SDK 57; versiones de `node_modules/expo/bundledNativeModules.json`), `.env.example`
+- `src/blankStore.js` (modo en blanco)
 - `src/data.js` (datos demo + `setDemoWorld()` / `setFamilyWorld()` que cambian KIDS, PEOPLE, SHIFT, MEMBERS… en su lugar), `theme.js`, `store.js` (tienda local/demo), `cloudStore.js` (tienda Supabase), `session.js` (AuthProvider), `supabase.js`, `ui.js`, `ai.js`, `scenes.js`, `parts.js`, `sheets.js`
 - `src/screens/`: `Hoy`, `Jugar`, `Agenda`, `Cocina`, `Familia`, `FamiliaAdmin` (invitar, turnos, fichas, cuenta), `Casa`, `Auth` (entrar, crear cuenta, recuperar, onboarding)
 - `supabase/schema.sql` (tablas, RLS, funciones `create_family` / `create_invite` / `accept_invite`), `supabase/tests/`
+
+Tres modos de datos (`S.cloud`, `S.blank`, ninguno = demostración). `isOwn(S)` = cloud o blank = **sin datos de ejemplo**:
+- **Demostración**: `store.js` + `fresh()`; usa las constantes de ejemplo de `data.js` (KIDS, RECIPES, MENU, CAMS, ARRIVALS, EXT_EVENTS…).
+- **En blanco** (`blankStore.js`, clave `tribbu-blank-v1`): arranca vacío con configuración inicial (tu nombre + niños). Guarda todo en `S` incluida `S.world` (niños y personas), y `applyWorld(S)` sincroniza KIDS/PEOPLE/SHIFT/MEMBERS en cada `update()`. «Ver como» cambia `S.me` (el rol se deriva). Cámaras, avisos de llegada y calendarios vinculados son **simulaciones** con datos propios (`S.cams`, `S.camev`, `S.arr`, `S.extevents`). Se llega desde la bienvenida (sin `.env`) o desde la pantalla de entrada.
+- **Nube** (`cloudStore.js`): ver abajo.
+- Las pantallas leen de `S` mediante helpers de `data.js` (`menuOf`, `allRecipes`, `arrivalsOf`, `camsOf`, `camEventsOf`, `todayRecipe`) que devuelven los datos de ejemplo solo si `S` no trae los suyos. **Al agregar contenido de ejemplo nuevo, hazlo con ese patrón** para que no aparezca en modo en blanco ni en la nube.
+- `useStore().family` (`saveKid`, `updateMember`, `removeMember`, `invite`, `listInvites`, `revokeInvite`) tiene versión nube y versión local; `FamiliaAdmin.js` solo usa esa interfaz.
+- `confirmAction()` (en `ui.js`) para confirmaciones; `Alert.alert` no funciona en web.
+- Cambiar `.env` exige `npx expo start --clear` (Metro guarda las variables en caché).
 
 Cómo funciona la fase 2:
 - Sin `.env` la app arranca en demostración. Con `.env` pide cuenta; la demostración sigue disponible ("Probar en modo demostración").
 - La estructura de `S` es la misma en demo y nube. En la nube cada lista (feed, tasks, docs…) son filas de la tabla `items` y los ajustes de `settings`. `update()` calcula la diferencia y guarda; un refresco trae los cambios de otros (tiempo real + respaldo cada 30 s).
 - **La privacidad la aplica la base de datos (RLS), no la app.** Si cambias qué ve un cuidador, cambia `can_read_item` / `caregiver_can_write` y agrega la prueba.
 - Cada cuenta pertenece a una sola familia. Personas: `p1`, `p2` (papás), `c1`, `c2`… (cuidadores). En la nube, `split` de gastos = porcentaje del primer papá (`PARENTS[0]`).
-- En la nube se ocultan las funciones que son simulación: cámaras, avisos de llegada, vincular calendarios, fotos.
+- En la nube se ocultan las funciones que son simulación: cámaras, avisos de llegada, vincular calendarios, fotos. El menú de la semana es el ajuste `menu` (los cuidadores lo leen, no lo editan).
 
 Limitaciones conocidas (decidir antes de publicar):
 - Un cuidador puede reescribir los mensajes de la conversación de un evento (se guarda como un arreglo por evento). Mejor un renglón por mensaje.

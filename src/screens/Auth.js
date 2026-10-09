@@ -42,6 +42,35 @@ function useAction(setMsg) {
   return [busy, run];
 }
 
+// Opciones sin cuenta: se muestran en la bienvenida y en la pantalla de entrada.
+function LocalModes() {
+  const auth = useAuth();
+  return (
+    <>
+      <Card>
+        <T v="bold">Modo de prueba en blanco</T>
+        <T v="small">La app completa, sin datos de ejemplo: tú cargas a tus hijos, cuidadores, agenda, recetas, etc. Todo se guarda solo en este teléfono y no necesitas cuenta.</T>
+        <Btn kind="sun" onPress={auth.startBlank}>Empezar en blanco</Btn>
+      </Card>
+      <Card>
+        <T v="bold">Demostración con datos de ejemplo</T>
+        <T v="small">Una familia de ejemplo ya cargada (Sofi, Mateo y sus abuelos) para ver cómo se ve la app llena.</T>
+        <Btn kind="ghost" onPress={auth.startDemo}>Ver la demostración</Btn>
+      </Card>
+    </>
+  );
+}
+
+export function WelcomeScreen() {
+  return (
+    <Frame>
+      <T v="h2">¿Cómo quieres probar Tribbu?</T>
+      <LocalModes />
+      <T v="small" style={{ textAlign: 'center' }}>Las cuentas para compartir con tu familia en varios teléfonos se activan al conectar Supabase (ver README).</T>
+    </Frame>
+  );
+}
+
 const validEmail = (e) => /^\S+@\S+\.\S+$/.test(e.trim());
 
 export function AuthScreen() {
@@ -109,11 +138,8 @@ export function AuthScreen() {
         {mode === 'login' ? <Btn kind="ghost" sm onPress={() => go('recover')}>Olvidé mi contraseña</Btn> : null}
         {!showTabs ? <Btn kind="ghost" sm onPress={() => go('login')}>Volver</Btn> : null}
       </Card>
-      <Card>
-        <T v="bold">¿Solo quieres conocer la app?</T>
-        <T v="small">El modo demostración usa datos de ejemplo que se guardan únicamente en este teléfono. No necesitas cuenta.</T>
-        <Btn kind="ghost" onPress={auth.startDemo}>Probar en modo demostración</Btn>
-      </Card>
+      <T v="label" style={{ marginTop: 4 }}>O prueba sin cuenta</T>
+      <LocalModes />
       <T v="small" style={{ textAlign: 'center' }}>¿Te invitaron a una familia? Crea tu cuenta aquí y después escribe el código de invitación.</T>
     </Frame>
   );
@@ -121,8 +147,8 @@ export function AuthScreen() {
 
 const blankKid = () => ({ name: '', age: '', allergy: '' });
 
-export function OnboardingScreen() {
-  const auth = useAuth();
+export function OnboardingScreen({ local, onLocalCreate, onLeave }) {
+  const auth = useAuth() || {};
   const [tab, setTab] = useState('new');
   const [familyName, setFamilyName] = useState('');
   const [myName, setMyName] = useState('');
@@ -134,6 +160,14 @@ export function OnboardingScreen() {
 
   const create = () => {
     const clean = kids.filter((k) => k.name.trim());
+    if (local) {
+      if (!myName.trim()) { setMsg({ text: 'Escribe tu nombre.' }); return; }
+      if (!clean.length) { setMsg({ text: 'Agrega al menos un niño o niña.' }); return; }
+      const bad0 = clean.find((k) => !(Number(k.age) >= 0 && Number(k.age) <= 17 && k.age !== ''));
+      if (bad0) { setMsg({ text: `Escribe la edad de ${bad0.name} (de 0 a 17 años).` }); return; }
+      onLocalCreate({ myName: myName.trim(), kids: clean.map((k) => ({ name: k.name.trim(), age: Number(k.age), allergy: k.allergy.trim() })) });
+      return;
+    }
     if (!familyName.trim() || !myName.trim()) { setMsg({ text: 'Escribe el nombre de tu familia y tu nombre.' }); return; }
     if (!clean.length) { setMsg({ text: 'Agrega al menos un niño o niña.' }); return; }
     const bad = clean.find((k) => !(Number(k.age) >= 0 && Number(k.age) <= 17 && k.age !== ''));
@@ -147,12 +181,12 @@ export function OnboardingScreen() {
 
   return (
     <Frame>
-      <T v="h2">Bienvenido</T>
-      <T v="small">{auth.user ? `Sesión iniciada como ${auth.user.email}.` : ''}</T>
-      <Seg full options={[['new', 'Crear mi familia'], ['join', 'Tengo un código']]} value={tab} onChange={(v) => { setTab(v); setMsg(null); }} />
-      {tab === 'new' ? (
+      <T v="h2">{local ? 'Empecemos en blanco' : 'Bienvenido'}</T>
+      <T v="small">{local ? 'Estos datos se guardan solo en este teléfono. Después podrás agregar cuidadores, otro papá o mamá y más niños desde la pestaña Familia.' : (auth.user ? `Sesión iniciada como ${auth.user.email}.` : '')}</T>
+      {local ? null : <Seg full options={[['new', 'Crear mi familia'], ['join', 'Tengo un código']]} value={tab} onChange={(v) => { setTab(v); setMsg(null); }} />}
+      {tab === 'new' || local ? (
         <Card>
-          <Field placeholder="Nombre de la familia, p. ej. Familia García" value={familyName} onChangeText={setFamilyName} />
+          {local ? null : <Field placeholder="Nombre de la familia, p. ej. Familia García" value={familyName} onChangeText={setFamilyName} />}
           <Field placeholder="Tu nombre, p. ej. Mamá de Sofi o Diego" value={myName} onChangeText={setMyName} />
           <T v="label">Niños</T>
           {kids.map((k, i) => (
@@ -167,8 +201,8 @@ export function OnboardingScreen() {
           ))}
           {kids.length < 8 ? <Btn kind="ghost" sm style={{ alignSelf: 'flex-start' }} onPress={() => setKids((a) => [...a, blankKid()])}>Agregar otro niño</Btn> : null}
           <Msg {...(msg || {})} />
-          <Btn kind="sun" disabled={busy} onPress={create}>{busy ? 'Creando…' : 'Crear familia'}</Btn>
-          <T v="small">Después podrás invitar al otro papá o mamá y a abuelos, niñeras o hermanos desde la pestaña Familia.</T>
+          <Btn kind="sun" disabled={busy} onPress={create}>{local ? 'Empezar' : busy ? 'Creando…' : 'Crear familia'}</Btn>
+          {local ? null : <T v="small">Después podrás invitar al otro papá o mamá y a abuelos, niñeras o hermanos desde la pestaña Familia.</T>}
         </Card>
       ) : (
         <Card>
@@ -178,7 +212,9 @@ export function OnboardingScreen() {
           <Btn kind="sun" disabled={busy} onPress={join}>{busy ? 'Uniéndome…' : 'Unirme a la familia'}</Btn>
         </Card>
       )}
-      <Btn kind="ghost" sm style={{ alignSelf: 'center' }} onPress={auth.signOut}>Cerrar sesión</Btn>
+      {local
+        ? <Btn kind="ghost" sm style={{ alignSelf: 'center' }} onPress={onLeave}>Cambiar de modo</Btn>
+        : <Btn kind="ghost" sm style={{ alignSelf: 'center' }} onPress={auth.signOut}>Cerrar sesión</Btn>}
     </Frame>
   );
 }

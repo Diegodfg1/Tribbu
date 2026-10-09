@@ -52,7 +52,7 @@ create table if not exists public.items (
 
 create table if not exists public.settings (
   family_id  uuid not null references public.families(id) on delete cascade,
-  key        text not null check (key in ('have','cal','locs','copa','camlog','pts','mile','summary')),
+  key        text not null,
   value      jsonb not null,
   updated_at timestamptz not null default now(),
   primary key (family_id, key)
@@ -73,6 +73,11 @@ create table if not exists public.invites (
   used_by      uuid,
   used_at      timestamptz
 );
+
+-- Claves de ajustes permitidas (se vuelve a crear para que el esquema se pueda correr otra vez).
+alter table public.settings drop constraint if exists settings_key_check;
+alter table public.settings add constraint settings_key_check
+  check (key in ('have','cal','locs','copa','camlog','pts','mile','summary','menu'));
 
 create index if not exists items_family_collection on public.items (family_id, collection);
 
@@ -197,10 +202,10 @@ drop policy if exists items_delete on public.items;
 create policy items_delete on public.items for delete to authenticated
   using (public.is_parent(family_id));
 
--- Ajustes: los cuidadores solo ven y modifican "have" (materiales) y "pts" (puntos).
+-- Ajustes: los cuidadores ven "have" (materiales), "pts" (puntos) y "menu"; solo modifican "have" y "pts".
 drop policy if exists settings_select on public.settings;
 create policy settings_select on public.settings for select to authenticated
-  using (public.is_parent(family_id) or (public.is_member(family_id) and key in ('have', 'pts')));
+  using (public.is_parent(family_id) or (public.is_member(family_id) and key in ('have', 'pts', 'menu')));
 drop policy if exists settings_insert on public.settings;
 create policy settings_insert on public.settings for insert to authenticated
   with check (public.is_parent(family_id) or (public.is_member(family_id) and key in ('have', 'pts')));

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import {
-  KIDS, MEMBERS, PEOPLE, SHIFT, SRC, addD, dayEvents, dayLong, dayShort, dk, evKey, fromKey, inShift, isCG, isCloud, mins, nameOf, overlaps, today,
+  KIDS, MEMBERS, PEOPLE, SHIFT, SRC, addD, dayEvents, dayLong, dayShort, dk, evKey, fromKey, inShift, isCG, isOwn, mins, nameOf, overlaps, today,
 } from '../data';
 import { TaskRow } from '../parts';
 import { CalendarsSheet, EventSheet } from '../sheets';
@@ -73,7 +73,7 @@ function ParentsAgenda() {
   const hr = (t) => mins(t) / 60;
   const shifts = MEMBERS.filter((m) => m.role === 'caregiver' && KIDS[m.kid])
     .map((m, i) => [`${m.name} · ${KIDS[m.kid].name}`, hr(m.from), hr(m.to), tones[i % 3]]);
-  if (!isCloud(S)) shifts.push(['Tú', 19, 22, c.skyBg]);
+  if (!isOwn(S)) shifts.push(['Tú', 19, 22, c.skyBg]);
   const pos = (h) => Math.max(0, Math.min(100, ((h - 8) / 14) * 100));
   const addEvent = () => {
     if (!form.t.trim() || !/^\d{1,2}:\d{2}$/.test(form.time)) { toast('Escribe un título y una hora como 17:00'); return; }

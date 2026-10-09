@@ -239,14 +239,28 @@ export function setFamilyWorld({ kids, members, meKey }) {
 export const isCG = (S) => S.role === 'cuidador';
 export const kidKey = (S) => (isCG(S) ? SHIFT.kid : S.kid);
 export const isCloud = (S) => !!S.cloud;
+export const isBlank = (S) => !!S.blank;
+// Con datos propios (cuenta real o modo en blanco) no se usan los datos de ejemplo.
+export const isOwn = (S) => !!(S.cloud || S.blank);
 export const me = (S) => S.me || (isCG(S) ? 'carmen' : 'yo');
 
 export function dayEvents(S, d) {
   const fam = [...BASE_EVENTS.filter((e) => e.d === d), ...S.myevents.filter((e) => e.d === d)]
     .map((e) => ({ ...e, src: 'familia', end: e.end || addMin(e.time, 60) }));
-  const ext = EXT_EVENTS.filter((e) => e.d === d && S.cal[e.src] && S.cal[e.src].on);
+  const ext = (S.extevents || EXT_EVENTS).filter((e) => e.d === d && S.cal[e.src] && S.cal[e.src].on);
   const all = [...fam, ...ext].sort((a, b) => mins(a.time) - mins(b.time));
   return { fam, ext, all };
 }
 export const inShift = (e) => e.d === dk(today) && e.kid === SHIFT.kid && mins(e.time) >= mins(SHIFT.from) && mins(e.time) < mins(SHIFT.to);
-export const allRecipes = (S) => [...S.myrecs, ...RECIPES];
+export const allRecipes = (S) => [...S.myrecs, ...(isOwn(S) ? [] : RECIPES)];
+// Menú de la semana: [día, id de receta o null]. En la demostración es el menú de ejemplo.
+export const BLANK_MENU = () => ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'].map((d) => [d, null]);
+export const menuOf = (S) => S.menu || MENU;
+export const arrivalsOf = (S) => S.arr || ARRIVALS;
+// Receta que toca hoy según el menú (lunes a viernes); null si no hay.
+export const todayRecipe = (S) => {
+  const m = menuOf(S)[todayIdx];
+  return m && m[1] != null ? allRecipes(S).find((x) => x.id === m[1]) || null : null;
+};
+export const camsOf = (S) => S.cams || CAMS;
+export const camEventsOf = (S) => S.camev || CAM_EVENTS;

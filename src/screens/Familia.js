@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
-import { KIDS, isCG, isCloud, kidKey, letterOf, me, nameOf, now, PARENTS, PEOPLE } from '../data';
+import { KIDS, isCG, isOwn, kidKey, letterOf, me, nameOf, now, PARENTS, PEOPLE } from '../data';
 import { AccountCard, FamilyAdmin } from './FamiliaAdmin';
 import { useStore } from '../store';
 import { F, useTheme } from '../theme';
@@ -151,7 +151,7 @@ export default function Familia() {
       <Logbook />
       <Emergency />
       <SharedDocs />
-      {isCG(S) ? null : <><Permissions />{isCloud(S) ? <FamilyAdmin /> : <Network />}</>}
+      {isCG(S) ? null : <><Permissions />{isOwn(S) ? <FamilyAdmin /> : <Network />}</>}
       <AccountCard />
     </>
   );

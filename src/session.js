@@ -7,7 +7,7 @@ import { setDemoWorld } from './data';
 const MODE_KEY = 'tribbu-modo';
 const Ctx = createContext(null);
 
-// phase: loading | demo | out | nofamily | ready
+// phase: loading | welcome | demo | blank | out | nofamily | ready
 export function AuthProvider({ children }) {
   const [phase, setPhase] = useState('loading');
   const [user, setUser] = useState(null);
@@ -27,9 +27,10 @@ export function AuthProvider({ children }) {
     let alive = true;
     (async () => {
       const mode = await AsyncStorage.getItem(MODE_KEY).catch(() => null);
-      if (!CLOUD || mode === 'demo') {
-        demoRef.current = true; setDemoWorld(); if (alive) setPhase('demo'); return;
+      if (mode === 'demo' || mode === 'blank') {
+        demoRef.current = true; setDemoWorld(); if (alive) setPhase(mode); return;
       }
+      if (!CLOUD) { setDemoWorld(); if (alive) setPhase('welcome'); return; }
       try {
         const { data } = await supabase.auth.getSession();
         if (!alive) return;
@@ -98,10 +99,16 @@ export function AuthProvider({ children }) {
       await AsyncStorage.setItem(MODE_KEY, 'demo').catch(() => {});
       setPhase('demo');
     },
+    // Modo de prueba en blanco: sin datos de ejemplo, todo se guarda solo en este teléfono.
+    async startBlank() {
+      demoRef.current = true; setDemoWorld();
+      await AsyncStorage.setItem(MODE_KEY, 'blank').catch(() => {});
+      setPhase('blank');
+    },
     async leaveDemo() {
       demoRef.current = false; setDemoWorld();
       await AsyncStorage.removeItem(MODE_KEY).catch(() => {});
-      if (!CLOUD) return;
+      if (!CLOUD) { setPhase('welcome'); return; }
       setPhase('loading');
       const { data } = await supabase.auth.getSession();
       if (data.session) await loadMember(data.session.user).catch(() => setPhase('out')); else setPhase('out');

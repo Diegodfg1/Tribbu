@@ -1,17 +1,17 @@
 // Tienda de datos con cuenta real: lee y guarda en Supabase, y se mantiene al día con los demás miembros.
 // Expone lo mismo que la tienda local (S, update, reset), así las pantallas casi no cambian.
 // La privacidad NO depende de este archivo: la aplica la base de datos (ver supabase/schema.sql).
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, View } from 'react-native';
 import { StoreCtx } from './store';
 import { supabase, friendly } from './supabase';
-import { KIDS, setFamilyWorld } from './data';
+import { BLANK_MENU, KIDS, setFamilyWorld } from './data';
 import { T } from './ui';
 import { useTheme } from './theme';
 
 const LISTS = ['tasks', 'myrecs', 'feed', 'shop', 'docs', 'exp'];
 const NEWEST_FIRST = ['feed', 'tasks', 'exp', 'myrecs']; // se agregan con unshift
-const SETTING_KEYS = ['have', 'cal', 'locs', 'copa', 'camlog', 'pts', 'mile', 'summary'];
+const SETTING_KEYS = ['have', 'cal', 'locs', 'copa', 'camlog', 'pts', 'mile', 'summary', 'menu'];
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const evId = (e) => `${e.d}|${e.time}|${e.t}`;
 // Las rutas de archivos locales (file://…) no sirven en otros teléfonos: no se sincronizan.
@@ -33,7 +33,7 @@ export function toRows(S) {
 
 const defaultSettings = () => ({
   have: [], cal: { google: { on: false, mode: 'ocupado' }, outlook: { on: false, mode: 'ocupado' }, icloud: { on: false, mode: 'detalle' } },
-  locs: {}, copa: false, camlog: true, pts: {}, mile: {}, summary: null,
+  locs: {}, copa: false, camlog: true, pts: {}, mile: {}, summary: null, menu: BLANK_MENU(),
 });
 
 export function buildState(rows, settings, local) {
@@ -190,6 +190,40 @@ export function CloudStoreProvider({ fam, children }) {
 
   const reset = useCallback(() => {}, []);
 
+  // Acciones de la familia (las usa la pantalla Familia; en modo en blanco hay una versión local).
+  const family = useMemo(() => ({
+    local: false,
+    async saveKid(key, data) {
+      const { error } = await supabase.from('kids').upsert({ family_id: familyId, key, data }, { onConflict: 'family_id,key' });
+      if (error) throw error;
+      await refresh();
+    },
+    async updateMember(key, { kid, from, to }) {
+      const { error } = await supabase.from('members').update({ kid_key: kid, shift_from: from, shift_to: to }).eq('family_id', familyId).eq('person_key', key);
+      if (error) throw error;
+      await refresh();
+    },
+    async removeMember(key) {
+      const { error } = await supabase.from('members').delete().eq('family_id', familyId).eq('person_key', key);
+      if (error) throw error;
+      await refresh();
+    },
+    // Devuelve el código de invitación.
+    async invite({ role, name, kid, from, to }) {
+      const { data, error } = await supabase.rpc('create_invite', {
+        p_family: familyId, p_role: role, p_name: name, p_kid: role === 'caregiver' ? kid : null,
+        p_from: role === 'caregiver' ? from : '00:00', p_to: role === 'caregiver' ? to : '23:59',
+      });
+      if (error) throw error;
+      return data;
+    },
+    async listInvites() {
+      const { data } = await supabase.from('invites').select('*').eq('family_id', familyId).is('used_at', null).gt('expires_at', new Date().toISOString()).order('created_at');
+      return data || [];
+    },
+    async revokeInvite(code) { await supabase.from('invites').delete().eq('code', code); },
+  }), [familyId, refresh]);
+
   if (!S) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg, padding: 24, gap: 12 }}>
@@ -198,5 +232,5 @@ export function CloudStoreProvider({ fam, children }) {
       </View>
     );
   }
-  return <StoreCtx.Provider value={{ S, update, reset, refresh, sync, familyId }}>{children}</StoreCtx.Provider>;
+  return <StoreCtx.Provider value={{ S, update, reset, refresh, sync, familyId, family }}>{children}</StoreCtx.Provider>;
 }
