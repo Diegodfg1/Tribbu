@@ -1,31 +1,41 @@
 // Hojas y pantallas completas que se abren sobre las pestañas.
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, View, Vibration, Image, Text } from 'react-native';
+import { Pressable, ScrollView, View, Vibration, Image, Text } from 'react-native';
 import Svg, { Circle, Ellipse, Line, Rect, Text as SvgText } from 'react-native-svg';
 import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  ACTS, KIDS, MATS, MENU, PEOPLE, SKILLS, SRC, aisleOf, allRecipes, dateLong, dayEvents, dk, evKey, fromKey,
-  inShift, isCG, kidKey, me, now, today, todayIdx,
+  ACTS, KIDS, MEMBERS, SKILLS, SRC, actById, addD, aisleOf, allRecipes, dateLong, dayEvents, dayShort, dk, evKey, fromKey,
+  evKids, evPeople, inShift, isBlank, isCG, isCloud, isNewAct, kidKey, matsOf, me, mkFeed, nameOf, now, tasksSorted, today, todayKey, todayRecipe, whoText,
 } from './data';
+import { DateField, TimeField } from './pickers';
+import { EventEditor } from './editors';
+import { FavButton } from './parts';
 import { DEMOS } from './scenes';
 import { useStore } from './store';
 import { F, useTheme } from './theme';
 import { askTribbu } from './ai';
-import { Avatar, Between, Btn, Card, Chip, Field, Pill, Row, SheetHead, T, useUI } from './ui';
+import { Avatar, Between, Btn, Card, Chip, Field, Pill, Row, SheetHead, T, confirmAction, useUI } from './ui';
 
 // ---------- Actividad ----------
 export function ActivitySheet({ id }) {
   const c = useTheme();
-  const { S } = useStore();
+  const { S, update } = useStore();
   const { openSheet, openFull } = useUI();
-  const a = ACTS.find((x) => x.id === id);
+  const a = actById(S, id);
+  const MATS = matsOf(S);
+  const { toast, closeSheet } = useUI();
   const miss = a.mats.filter((m) => !S.have.includes(m));
   return (
     <>
       <SheetHead label={`${SKILLS[a.sk][0]} · ${a.energy}`} title={a.t} />
-      <Row gap={6} wrap>{a.mats.map((m) => <Pill key={m} tone={S.have.includes(m) ? 'leaf' : 'berry'}>{MATS[m]}</Pill>)}</Row>
+      <Row gap={8}>
+        {isNewAct(a, S) ? <Pill tone="sun">Nueva este mes</Pill> : null}
+        {a.mine ? <Pill tone="sky">Tuya</Pill> : null}
+        <FavButton id={a.id} size={26} />
+      </Row>
+      {a.mats.length ? <Row gap={6} wrap>{a.mats.map((m) => <Pill key={m} tone={S.have.includes(m) ? 'leaf' : 'berry'}>{MATS[m]}</Pill>)}</Row> : <T v="small">No necesitas materiales.</T>}
       <T v="small">{`${a.why} · ${a.age[0]} a ${a.age[1]} años · ${a.min} min`}</T>
       <View style={{ gap: 6 }}>{a.steps.map((s, i) => <T key={i}>{`${i + 1}. ${s}`}</T>)}</View>
       {miss.length ? <T v="small" color={c.berry}>{`Falta ${miss.map((m) => MATS[m]).join(', ')}. Pídele a Tribbu una alternativa.`}</T> : null}
@@ -34,6 +44,12 @@ export function ActivitySheet({ id }) {
         <Btn kind="sun" style={{ flex: 1 }} onPress={() => openFull(<TimerScreen id={a.id} />)}>Empezar y guardar el teléfono</Btn>
         {miss.length ? <Btn kind="ghost" onPress={() => openSheet(<ChatSheet pre={`Quiero hacer "${a.t}" pero no tengo ${miss.map((m) => MATS[m]).join(', ')}. ¿Con qué lo sustituyo o qué actividad parecida hago?`} />)}>Alternativa</Btn> : null}
       </Row>
+      {a.mine && !isCG(S) ? (
+        <Btn kind="ghost" onPress={() => confirmAction('¿Eliminar esta actividad?', `«${a.t}»`, 'Eliminar', () => {
+          update((d) => { d.myacts = (d.myacts || []).filter((x) => x.id !== a.id); d.favs = (d.favs || []).filter((x) => x !== a.id); });
+          closeSheet(); toast('Actividad eliminada');
+        })}>Eliminar mi actividad</Btn>
+      ) : null}
     </>
   );
 }
@@ -86,14 +102,14 @@ export function TimerScreen({ id }) {
   const c = useTheme();
   const { update, S } = useStore();
   const { closeFull, toast } = useUI();
-  const a = ACTS.find((x) => x.id === id);
+  const a = actById(S, id);
   const total = a.min * 60;
   const [left, setLeft] = useState(total);
   const done = useRef(false);
   const finish = () => {
     if (done.current) return;
     done.current = true;
-    update((d) => { d.feed.unshift({ id: Date.now(), who: me(S), kid: kidKey(S), kind: 'Actividad', txt: `Jugamos «${a.t}».`, t: now(), lvl: 'info' }); });
+    update((d) => { d.feed.unshift(mkFeed(S, { kind: 'Actividad', txt: `Jugamos «${a.t}».` })); });
     closeFull();
     toast('Actividad guardada en la bitácora');
   };
@@ -131,23 +147,55 @@ const LOG_OPTS = {
   'Medicina': ['Medicamento indicado por el pediatra', 'Jarabe para la tos', 'Otra (ver nota)'],
   'Golpe': ['Golpe leve, sin marca', 'Golpe con chichón', 'Raspón'],
 };
-export function LogSheet({ kind }) {
+// Los seis botones de registro rápido. day: fecha a la que se registra (por defecto, hoy).
+export function QuickLog({ day }) {
+  const c = useTheme();
+  const { S } = useStore();
+  const { openSheet } = useUI();
+  const items = [['Comió', 'C', c.leafBg], ['Siesta', 'Z', c.skyBg], ['Baño', 'B', c.amberBg], ['Ánimo', 'A', c.sun], ['Medicina', 'M', c.berryBg], ['Golpe', '!', c.berryBg]];
+  return (
+    <>
+      <T v="label">{`Registro rápido de ${KIDS[kidKey(S)].name}`}</T>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {items.map(([n, i, bg]) => (
+          <Pressable key={n} onPress={() => openSheet(<LogSheet kind={n} day={day} />)} accessibilityRole="button"
+            style={{ width: '31.5%', borderWidth: 1.5, borderColor: c.line, backgroundColor: c.paper, borderRadius: 16, paddingVertical: 10, alignItems: 'center', gap: 4 }}>
+            <Avatar letter={i} bg={bg} fg={c.ink} size={30} />
+            <T v="bold" style={{ fontSize: 12.5 }}>{n}</T>
+          </Pressable>
+        ))}
+      </View>
+    </>
+  );
+}
+
+// Registro con fecha y hora de cuándo ocurrió (no solo de cuándo se anota).
+export function LogSheet({ kind, day }) {
   const { S, update } = useStore();
   const { closeSheet, toast } = useUI();
   const opts = LOG_OPTS[kind];
   const [sel, setSel] = useState(opts[0]);
   const [note, setNote] = useState('');
+  const [d, setD] = useState(day || todayKey());
+  const [t, setT] = useState(now());
   const save = () => {
-    update((d) => { d.feed.unshift({ id: Date.now(), who: me(S), kid: kidKey(S), kind, txt: sel + (note.trim() ? `. ${note.trim()}` : ''), t: now(), lvl: kind === 'Golpe' || kind === 'Medicina' ? 'atencion' : 'info' }); });
+    update((x) => { x.feed.unshift(mkFeed(S, { kind, d, t, txt: sel + (note.trim() ? `. ${note.trim()}` : ''), lvl: kind === 'Golpe' || kind === 'Medicina' ? 'atencion' : 'info' })); });
     closeSheet();
-    toast(isCG(S) ? 'Registrado. Los papás ya lo ven' : 'Registrado. La familia ya lo ve');
+    const when = d === todayKey() ? `a las ${t}` : `el ${dateLong(fromKey(d))} a las ${t}`;
+    toast(`${kind} registrado ${when}`);
   };
   return (
     <>
       <SheetHead title={`${kind} · ${KIDS[kidKey(S)].name}`} />
       <Row gap={6} wrap>{opts.map((o) => <Chip key={o} on={o === sel} onPress={() => setSel(o)}>{o}</Chip>)}</Row>
       <Field placeholder="Nota opcional" value={note} onChangeText={setNote} />
-      <Btn onPress={save}>{`Guardar a las ${now()}`}</Btn>
+      <T v="label">¿Cuándo ocurrió?</T>
+      <DateField value={d} onChange={setD} />
+      <Row style={{ alignItems: 'flex-end' }}>
+        <TimeField value={t} onChange={setT} />
+        <Btn sm kind="ghost" onPress={() => { setD(todayKey()); setT(now()); }}>Ahora</Btn>
+      </Row>
+      <Btn onPress={save}>Guardar registro</Btn>
     </>
   );
 }
@@ -156,6 +204,7 @@ export function LogSheet({ kind }) {
 export function EventSheet({ k }) {
   const c = useTheme();
   const { S, update } = useStore();
+  const { openFull, closeSheet, toast } = useUI();
   const [msg, setMsg] = useState('');
   const d = k.split('|')[0];
   const e = dayEvents(S, d).fam.find((x) => evKey(x) === k);
@@ -165,17 +214,25 @@ export function EventSheet({ k }) {
     const v = msg.trim();
     if (!v) return;
     update((dd) => { (dd.evchat[k] = dd.evchat[k] || []).push({ who: me(S), txt: v, t: now() }); });
-    setMsg('');
+    setMsg(''); toast('Mensaje enviado');
   };
+  const remove = () => confirmAction('¿Eliminar este evento?', `«${e.t}» y su conversación se borran para todos.`, 'Eliminar', () => {
+    update((dd) => {
+      dd.myevents = dd.myevents.filter((x) => evKey(x) !== k);
+      if (e.base) dd.delev = [...(dd.delev || []), k];
+      delete dd.evchat[k];
+    });
+    closeSheet(); toast('Evento eliminado');
+  });
   return (
     <>
-      <SheetHead label={`${e.tag} · ${KIDS[e.kid].name}`} title={e.t} sub={`${dateLong(fromKey(d))} · ${e.time} a ${e.end}`} />
+      <SheetHead label={`${e.tag} · ${whoText(evKids(e), evPeople(e))}`} title={e.t} sub={`${dateLong(fromKey(d))} · ${e.time} a ${e.end}`} />
       <T v="label">Conversación del evento</T>
       {ms.length ? ms.map((m, i) => {
         const mine = m.who === me(S);
         return (
           <View key={i} style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: '90%', backgroundColor: mine ? c.skyBg : c.paper2, borderRadius: 14, paddingHorizontal: 11, paddingVertical: 8 }}>
-            <T v="small" style={{ fontFamily: F.bold, color: c.ink }}>{`${PEOPLE[m.who][0]} · ${m.t}`}</T>
+            <T v="small" style={{ fontFamily: F.bold, color: c.ink }}>{`${nameOf(m.who)} · ${m.t}`}</T>
             <T>{m.txt}</T>
           </View>
         );
@@ -184,11 +241,47 @@ export function EventSheet({ k }) {
         <Field style={{ flex: 1 }} placeholder="Escribe sobre este evento" value={msg} onChangeText={setMsg} onSubmitEditing={send} returnKeyType="send" />
         <Btn kind="sun" onPress={send}>Enviar</Btn>
       </Row>
+      {isCG(S) ? null : (
+        <Row>
+          <Btn kind="ghost" style={{ flex: 1 }} onPress={() => openFull(<EventEditor k={k} />)}>Editar evento</Btn>
+          <Btn kind="ghost" style={{ flex: 1 }} onPress={remove}>Eliminar</Btn>
+        </Row>
+      )}
     </>
   );
 }
 
 // ---------- Calendarios ----------
+function ExtEventForm() {
+  const { S, update } = useStore();
+  const { toast } = useUI();
+  const linked = ['google', 'outlook', 'icloud'].filter((k) => S.cal[k] && S.cal[k].on);
+  const [f, setF] = useState({ src: linked[0] || 'google', t: '', d: dk(today), time: '09:00', end: '10:00' });
+  const days = [0, 1, 2, 3, 4, 5, 6].map((n) => addD(n));
+  if (!linked.length) return <T v="small">Conecta una cuenta arriba para poder agregarle eventos de prueba.</T>;
+  const src = linked.includes(f.src) ? f.src : linked[0];
+  const add = () => {
+    if (!f.t.trim() || !/^\d{1,2}:\d{2}$/.test(f.time) || !/^\d{1,2}:\d{2}$/.test(f.end)) { toast('Escribe un título y las horas como 09:00'); return; }
+    update((d) => { d.extevents.push({ src, d: f.d, time: f.time.padStart(5, '0'), end: f.end.padStart(5, '0'), t: f.t.trim() }); });
+    setF((x) => ({ ...x, t: '' })); toast('Evento de prueba agregado. Míralo en Agenda');
+  };
+  return (
+    <>
+      <T v="label">Agregar evento a una cuenta conectada (simulación)</T>
+      <Row gap={6} wrap>{linked.map((k) => <Chip key={k} on={src === k} onPress={() => setF((x) => ({ ...x, src: k }))}>{SRC[k].n}</Chip>)}</Row>
+      <Field placeholder="Título, p. ej. Junta de trabajo" value={f.t} onChangeText={(t) => setF((x) => ({ ...x, t }))} />
+      <Row gap={6} wrap>{days.map((d) => <Chip key={dk(d)} on={f.d === dk(d)} onPress={() => setF((x) => ({ ...x, d: dk(d) }))}>{`${dayShort(d)} ${d.getDate()}`}</Chip>)}</Row>
+      <Row>
+        <Field style={{ flex: 1 }} placeholder="09:00" value={f.time} onChangeText={(time) => setF((x) => ({ ...x, time }))} keyboardType="numbers-and-punctuation" />
+        <T>a</T>
+        <Field style={{ flex: 1 }} placeholder="10:00" value={f.end} onChangeText={(end) => setF((x) => ({ ...x, end }))} keyboardType="numbers-and-punctuation" />
+      </Row>
+      <Btn sm style={{ alignSelf: 'flex-start' }} onPress={add}>Agregar evento</Btn>
+      <T v="small">Si cae a la misma hora que un evento familiar, la Agenda avisa del choque y permite pedir apoyo a un cuidador.</T>
+    </>
+  );
+}
+
 export function CalendarsSheet() {
   const c = useTheme();
   const { S, update } = useStore();
@@ -201,37 +294,44 @@ export function CalendarsSheet() {
         <Avatar letter="T" bg={c.sun} fg={c.sunInk} />
         <View style={{ flex: 1 }}><T v="bold">Tribbu familiar</T><T v="small" color={c.ink}>Calendario propio de la familia. Cada cuidador solo ve lo de su turno.</T></View>
       </Card>
-      <T v="label">Vincular otras cuentas (opcional)</T>
-      {['google', 'outlook', 'icloud'].map((k, idx) => {
-        const s = S.cal[k];
-        return (
-          <View key={k} style={{ gap: 8, paddingTop: idx ? 10 : 0, borderTopWidth: idx ? 1 : 0, borderTopColor: c.line }}>
-            <Between>
-              <Row style={{ flex: 1 }}>
-                <Avatar letter={SRC[k].l} bg={c[SRC[k].color]} fg={c.paper} />
-                <View style={{ flex: 1 }}><T v="bold">{SRC[k].n}</T><T v="small">{s.on ? 'Conectado · solo lectura' : 'No conectado'}</T></View>
-              </Row>
-              <Btn sm kind={s.on ? 'ghost' : 'ink'} onPress={() => { update((d) => { d.cal[k].on = !d.cal[k].on; }); toast(s.on ? 'Cuenta desconectada' : `${SRC[k].n} conectado`); }}>{s.on ? 'Desconectar' : 'Conectar'}</Btn>
-            </Between>
-            {s.on ? (
-              <Between>
-                <T v="small">El otro papá ve</T>
-                <Row gap={6}>
-                  <Chip on={s.mode === 'ocupado'} onPress={() => update((d) => { d.cal[k].mode = 'ocupado'; })}>Solo «Ocupado»</Chip>
-                  <Chip on={s.mode === 'detalle'} onPress={() => update((d) => { d.cal[k].mode = 'detalle'; })}>Con detalles</Chip>
-                </Row>
-              </Between>
-            ) : null}
-          </View>
-        );
-      })}
+      {isCloud(S) ? (
+        <T v="small">Pronto podrás vincular tu calendario de Google, Outlook o iCloud (solo lectura). Por ahora los eventos se agregan en Tribbu y cada cuidador ve únicamente los de su turno.</T>
+      ) : (
+        <>
+          <T v="label">Vincular otras cuentas (opcional)</T>
+          {['google', 'outlook', 'icloud'].map((k, idx) => {
+            const s = S.cal[k];
+            return (
+              <View key={k} style={{ gap: 8, paddingTop: idx ? 10 : 0, borderTopWidth: idx ? 1 : 0, borderTopColor: c.line }}>
+                <Between>
+                  <Row style={{ flex: 1 }}>
+                    <Avatar letter={SRC[k].l} bg={c[SRC[k].color]} fg={c.paper} />
+                    <View style={{ flex: 1 }}><T v="bold">{SRC[k].n}</T><T v="small">{s.on ? 'Conectado · solo lectura' : 'No conectado'}</T></View>
+                  </Row>
+                  <Btn sm kind={s.on ? 'ghost' : 'ink'} onPress={() => { update((d) => { d.cal[k].on = !d.cal[k].on; }); toast(s.on ? 'Cuenta desconectada' : `${SRC[k].n} conectado`); }}>{s.on ? 'Desconectar' : 'Conectar'}</Btn>
+                </Between>
+                {s.on ? (
+                  <Between>
+                    <T v="small">El otro papá ve</T>
+                    <Row gap={6}>
+                      <Chip on={s.mode === 'ocupado'} onPress={() => update((d) => { d.cal[k].mode = 'ocupado'; })}>Solo «Ocupado»</Chip>
+                      <Chip on={s.mode === 'detalle'} onPress={() => update((d) => { d.cal[k].mode = 'detalle'; })}>Con detalles</Chip>
+                    </Row>
+                  </Between>
+                ) : null}
+              </View>
+            );
+          })}
+          {isBlank(S) ? <ExtEventForm /> : null}
       <T v="small">Los cuidadores nunca ven tus calendarios vinculados. En la fase 2 se leen los calendarios reales de tu teléfono.</T>
-      <T v="label">Llevar Tribbu a tu calendario</T>
-      <T>Suscríbete desde Google, Outlook o Apple y los eventos familiares aparecerán ahí, sin compartir tu calendario de trabajo.</T>
-      <View style={{ backgroundColor: c.paper2, borderWidth: 1, borderStyle: 'dashed', borderColor: c.line, borderRadius: 10, padding: 10 }}>
-        <T v="small" color={c.ink} selectable>{link}</T>
-      </View>
-      <Row><Btn sm onPress={async () => { await Clipboard.setStringAsync(link); toast('Enlace copiado'); }}>Copiar enlace</Btn><T v="small">Enlace de ejemplo</T></Row>
+          <T v="label">Llevar Tribbu a tu calendario</T>
+          <T>Suscríbete desde Google, Outlook o Apple y los eventos familiares aparecerán ahí, sin compartir tu calendario de trabajo.</T>
+          <View style={{ backgroundColor: c.paper2, borderWidth: 1, borderStyle: 'dashed', borderColor: c.line, borderRadius: 10, padding: 10 }}>
+            <T v="small" color={c.ink} selectable>{link}</T>
+          </View>
+          <Row><Btn sm onPress={async () => { await Clipboard.setStringAsync(link); toast('Enlace copiado'); }}>Copiar enlace</Btn><T v="small">Enlace de ejemplo</T></Row>
+        </>
+      )}
     </>
   );
 }
@@ -252,6 +352,7 @@ export function RecipeSheet({ id }) {
       {r.ing.map((x, i) => <T key={i}>{`• ${x}`}</T>)}
       <T v="label">Pasos</T>
       {r.steps.map((x, i) => <T key={i}>{`${i + 1}. ${x}`}</T>)}
+      {r.safety ? <Card bg={c.amberBg} border={c.amberBg}><T v="label">Para comer con seguridad</T><T color={c.ink}>{r.safety}</T></Card> : null}
       {!isCG(S) ? (
         <Btn kind="ghost" onPress={() => {
           update((d) => { r.ing.forEach((x) => { if (!d.shop.some((y) => y.t === x)) d.shop.push({ id: Date.now() + Math.random(), t: x, a: aisleOf(x), done: false }); }); });
@@ -264,7 +365,7 @@ export function RecipeSheet({ id }) {
 
 export function UploadRecipeSheet() {
   const c = useTheme();
-  const { update } = useStore();
+  const { S, update } = useStore();
   const { closeSheet, toast } = useUI();
   const [f, setF] = useState({ t: '', min: '20', age: '1+', ing: '', steps: '', alg: '', img: null });
   const set = (k) => (v) => setF((x) => ({ ...x, [k]: v }));
@@ -286,10 +387,12 @@ export function UploadRecipeSheet() {
       <Field multiline placeholder="Ingredientes, uno por línea" value={f.ing} onChangeText={set('ing')} />
       <Field multiline placeholder="Pasos, uno por línea" value={f.steps} onChangeText={set('steps')} />
       <Field placeholder="Alérgenos separados por coma (opcional)" value={f.alg} onChangeText={set('alg')} />
-      <Row>
-        <Btn kind="ghost" sm onPress={pick}>{f.img ? 'Cambiar foto' : 'Agregar foto'}</Btn>
-        {f.img ? <Image source={{ uri: f.img }} style={{ width: 48, height: 48, borderRadius: 10 }} /> : null}
-      </Row>
+      {isCloud(S) ? <T v="small">Las fotos de recetas se sincronizarán en una versión posterior.</T> : (
+        <Row>
+          <Btn kind="ghost" sm onPress={pick}>{f.img ? 'Cambiar foto' : 'Agregar foto'}</Btn>
+          {f.img ? <Image source={{ uri: f.img }} style={{ width: 48, height: 48, borderRadius: 10 }} /> : null}
+        </Row>
+      )}
       <Btn kind="sun" onPress={save}>Publicar en la familia</Btn>
     </>
   );
@@ -371,21 +474,30 @@ export function BoardScreen() {
   const { closeFull } = useUI();
   const insets = useSafeAreaInsets();
   const all = dayEvents(S, dk(today)).fam;
-  const m = MENU[todayIdx] || MENU[0];
-  const r = allRecipes(S).find((x) => x.id === m[1]);
+  const r = todayRecipe(S);
+  const pend = tasksSorted(S.tasks).filter((t) => !t.done);
   const Blk = ({ label, children }) => (
     <View style={{ borderTopWidth: 3, borderTopColor: c.ink, paddingTop: 8, gap: 4 }}><T v="label">{label}</T>{children}</View>
   );
   const Big = ({ children }) => <T style={{ fontSize: 18, lineHeight: 25 }}>{children}</T>;
   return (
-    <View style={{ flex: 1, backgroundColor: c.paper, paddingTop: insets.top + 20, paddingHorizontal: 22, paddingBottom: insets.bottom + 20, gap: 16 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: c.paper }} contentContainerStyle={{ paddingTop: insets.top + 20, paddingHorizontal: 22, paddingBottom: insets.bottom + 20, gap: 16 }}>
       <Between><T v="label">Modo pizarra · tablet de la cocina</T><Btn sm kind="ghost" onPress={closeFull}>Salir</Btn></Between>
       <T v="h1">{dateLong(today)}</T>
-      <Blk label="Quién cuida"><Big>Sofi · Abuela Carmen, 14 a 19 h</Big><Big>Mateo · Abuelo Jorge, 16 a 20 h</Big></Blk>
-      <Blk label="Hoy">{all.map((e, i) => <Big key={i}>{`${e.time}  ${e.t}`}</Big>)}</Blk>
-      <Blk label="Comida"><Big>{r ? r.t : 'Lentejas con arroz'}</Big></Blk>
-      <Blk label="Puntos de la semana"><Big>{`Sofi ${S.pts.sofi} · Mateo ${S.pts.mateo}`}</Big></Blk>
+      <Blk label="Quién cuida">
+        {Object.keys(KIDS).map((k) => {
+          const g = MEMBERS.find((x) => x.role === 'caregiver' && x.kid === k);
+          return <Big key={k}>{g ? `${KIDS[k].name} · ${g.name}, ${g.from.replace(/^0/, '')} a ${g.to.replace(/^0/, '')} h` : `${KIDS[k].name} · en casa`}</Big>;
+        })}
+      </Blk>
+      <Blk label="Hoy">{all.length ? all.map((e, i) => <Big key={i}>{`${e.time}  ${e.t}`}</Big>) : <Big>Sin eventos</Big>}</Blk>
+      <Blk label="Pendientes">
+        {pend.length ? pend.slice(0, 6).map((t) => <Big key={t.id}>{`${nameOf(t.who)}: ${t.t}`}</Big>) : <Big>Todo al día</Big>}
+        {pend.length > 6 ? <T v="small">{`y ${pend.length - 6} más`}</T> : null}
+      </Blk>
+      <Blk label="Comida"><Big>{r ? r.t : 'Sin menú registrado hoy'}</Big></Blk>
+      <Blk label="Puntos de la semana"><Big>{Object.keys(KIDS).map((k) => `${KIDS[k].name} ${S.pts[k] || 0}`).join(' · ')}</Big></Blk>
       <T v="small">Pensado para una tablet fija en la pared. Muestra solo lo que cualquier persona en casa puede ver.</T>
-    </View>
+    </ScrollView>
   );
 }

@@ -24,18 +24,54 @@ Prototipo de referencia (diseño y comportamiento aprobados por el dueño): http
 - Animaciones "Ver cómo se juega" en `src/scenes.js` (Animated + react-native-svg). Más adelante pueden sustituirse por archivos Rive/Lottie.
 
 ## Estado de los archivos
-Escritos (sin ejecutar todavía; revisar y corregir al correr la app):
-- `src/data.js` — datos de ejemplo, fechas, estado inicial `fresh()`, derivados por rol.
-- `src/theme.js`, `src/store.js`, `src/ui.js`, `src/ai.js`, `src/scenes.js`, `src/parts.js`, `src/sheets.js`
-- `src/screens/Hoy.js`, `src/screens/Jugar.js`, `src/screens/Agenda.js`
+**Fase 1 completa** (modo demostración, datos locales). **Fase 2 completa en código** (cuentas, familias, invitaciones, permisos, sincronización). Verificado: compila para Android e iOS (`npx expo export`); 39 pruebas de privacidad en Postgres (`supabase/tests/rls_test.sql`); recorrido de punta a punta en navegador con Postgres + PostgREST reales y un GoTrue simulado (mamá crea familia, invita a la abuela, ella entra con el código y solo ve lo que le toca). El modo en blanco se recorrió también de punta a punta en navegador (52 comprobaciones). **Aún no probado con un proyecto real de Supabase ni en un teléfono con Expo Go.**
 
-Pendientes:
-- `src/screens/Cocina.js` — pestañas Menú / Compras / Recetas (la cuidadora solo ve "Menú de hoy" y Recetas). Botón para armar la lista de compras desde el menú, agrupada por pasillo (`aisleOf`). Importar receta desde enlace (en fase 1 crea un borrador). Usar `RecipeSheet` y `UploadRecipeSheet`.
-- `src/screens/Familia.js` — bitácora del niño activo con nivel informativo/atención/urgente, ficha de emergencia, documentos compartidos, tabla "Qué ve cada quien" y red de cuidado (solo papás). La cuidadora no ve entradas con `parentsOnly`.
-- `src/screens/Casa.js` (solo papás) — cámaras (`LiveCamSheet`, avisos a la bitácora como `parentsOnly`), documentos con interruptor "compartir con cuidadores" y subir documento, gastos compartidos con balance y modo coparentalidad (custodia semanal), avisos de llegada por cuidador, botón de modo pizarra.
-- `App.js` — cargar fuentes, `SafeAreaProvider` > `StoreProvider` > `UIProvider` > Shell: encabezado (marca "Tribbu", selector de rol, niños; la cuidadora solo ve a Sofi y un aviso de vista restringida), pantalla activa en un `ScrollView` (padding 16, gap 16), barra de pestañas inferior con `NavIcon` (la cuidadora no tiene "Casa") y botón flotante "Pregúntale a Tribbu" que abre `ChatSheet`.
-- `app.json` con nombre "Tribbu", slug "tribbu", `userInterfaceStyle: "automatic"`.
-- Un botón discreto para reiniciar los datos de ejemplo (`reset` del store).
+- `App.js`, `index.js`, `app.json`, `package.json` (Expo SDK 57; versiones de `node_modules/expo/bundledNativeModules.json`), `.env.example`
+- `src/blankStore.js` (modo en blanco), `src/pickers.js` (fecha/hora/calendario), `src/editors.js` (evento y pendiente), `src/library.js` (actividades mensuales), `src/nutri.js` (recetas nutritivas)
+- `src/data.js` (datos demo + `setDemoWorld()` / `setFamilyWorld()` que cambian KIDS, PEOPLE, SHIFT, MEMBERS… en su lugar), `theme.js`, `store.js` (tienda local/demo), `cloudStore.js` (tienda Supabase), `session.js` (AuthProvider), `supabase.js`, `ui.js`, `ai.js`, `scenes.js`, `parts.js`, `sheets.js`
+- `src/screens/`: `Hoy`, `Jugar`, `Agenda`, `Cocina`, `Familia`, `FamiliaAdmin` (invitar, turnos, fichas, cuenta), `Casa`, `Auth` (entrar, crear cuenta, recuperar, onboarding)
+- `supabase/schema.sql` (tablas, RLS, funciones `create_family` / `create_invite` / `accept_invite`), `supabase/tests/`
+
+Tres modos de datos (`S.cloud`, `S.blank`, ninguno = demostración). `isOwn(S)` = cloud o blank = **sin datos de ejemplo**:
+- **Demostración**: `store.js` + `fresh()`; usa las constantes de ejemplo de `data.js` (KIDS, RECIPES, MENU, CAMS, ARRIVALS, EXT_EVENTS…).
+- **En blanco** (`blankStore.js`, clave `tribbu-blank-v1`): arranca vacío con configuración inicial (tu nombre + niños). Guarda todo en `S` incluida `S.world` (niños y personas), y `applyWorld(S)` sincroniza KIDS/PEOPLE/SHIFT/MEMBERS en cada `update()`. «Ver como» cambia `S.me` (el rol se deriva). Cámaras, avisos de llegada y calendarios vinculados son **simulaciones** con datos propios (`S.cams`, `S.camev`, `S.arr`, `S.extevents`). Se llega desde la bienvenida (sin `.env`) o desde la pantalla de entrada.
+- **Nube** (`cloudStore.js`): ver abajo.
+- Las pantallas leen de `S` mediante helpers de `data.js` (`menuOf`, `allRecipes`, `arrivalsOf`, `camsOf`, `camEventsOf`, `todayRecipe`) que devuelven los datos de ejemplo solo si `S` no trae los suyos. **Al agregar contenido de ejemplo nuevo, hazlo con ese patrón** para que no aparezca en modo en blanco ni en la nube.
+- `useStore().family` (`saveKid`, `updateMember`, `removeMember`, `invite`, `listInvites`, `revokeInvite`) tiene versión nube y versión local; `FamiliaAdmin.js` solo usa esa interfaz.
+- `confirmAction()` (en `ui.js`) para confirmaciones; `Alert.alert` no funciona en web.
+- Cambiar `.env` exige `npx expo start --clear` (Metro guarda las variables en caché).
+
+Segunda tanda de mejoras (hecha):
+- `src/milestones.js` (176 hitos por edad, fuentes CDC 2022 y EDI de México; guía, no diagnóstico), `screens/Hitos.js` (estadísticas y marcado), `src/ideas.js` (actividad nueva a partir de un objeto de casa; plantillas, no IA), `src/stories.js` + `screens/Cuentos.js` (cuentos con plantillas: tema + protagonistas niños/papás/personaje), `screens/Puntos.js` (quehaceres y recompensas propios), `src/stats.js` + `screens/Resumen.js` (tablero en Hoy → Resumen, solo papás), `src/logo.js` (logotipo de la marca).
+- Eventos llevan `kids` y `people`; pendientes llevan `whos`. `S.mile[`${niño}|${id}`]` = fecha en que se logró. Nuevas listas: `S.chores`, `S.rewards`, `S.mymats`, `S.myacts`, `S.stories` (en la nube: ajustes `chores,rewards,mymats`, colecciones `myacts,stories`). Si ya corriste `schema.sql`, vuelve a correrlo.
+- Marca aplicada (colores, logotipo, ícono en `assets/`, sin emojis, color fijo por habilidad vía `skillColors`).
+
+Convenciones de datos (las pantallas dependen de ellas):
+- **Bitácora** (`S.feed`): cada registro lleva `d` (AAAA-MM-DD) y `t` (HH:MM) de **cuándo ocurrió**, no de cuándo se anotó. Créalos siempre con `mkFeed(S, {...})`; `feedDay(x)` deduce la fecha de registros antiguos. La pantalla Familia los muestra por día y por niño, ordenados con `feedSort`.
+- **Pendientes** (`S.tasks`): `{id, t, who, done, due?}`. `tasksSorted()` los ordena. Se ven en Hoy, Agenda y Pizarra; se crean y editan en `TaskEditor` (`editors.js`).
+- **Eventos familiares** (`S.myevents`, llave `evKey` = `fecha|hora|título`): se crean/editan/borran en `EventEditor`. En la demostración los eventos de ejemplo no se pueden borrar de verdad: se ocultan con `S.delev`. Al renombrar o mover un evento, la conversación (`S.evchat`) cambia de llave.
+- **Fechas y horas**: `src/pickers.js` (`DateField`, `TimeField`, `MonthGrid`) se despliega **en el mismo lugar**, sin ventanas encimadas. No uses `Modal` dentro de otro `Modal` (en iPhone la segunda no se presenta); las pantallas completas (`openFull`) y las hojas (`openSheet`) son Modals distintos.
+- **Avisos**: `toast()` en cada acción del usuario (cualquier acción nueva debe llamarlo). Se muestran arriba de la pantalla.
+- **Actividades**: `ACTS` = 12 originales (`unlock: -1`, siempre visibles) + `MORE_ACTS` de `library.js` con `unlock` = mes de uso en que se desbloquean (0 = primer mes). `S.since` ('AAAA-MM') es el mes en que la familia empezó; `monthsUsed(S)`, `unlockedActs(S)`, `isNewAct(a, S)`. `S.favs` = ids favoritos (solo los papás los cambian). La biblioteca es finita (8 grupos de 4): después de eso se necesita contenido nuevo o IA (fase 3). `S.afilter` ('all'|'fav'|'new') es solo local.
+- **Ideas nutritivas** (`nutri.js`): recetas **originales** de Tribbu con criterios del Plato del Bien Comer (NOM-043-SSA2), la guía de alimentación complementaria de la OMS (2023) y advertencias de atragantamiento y miel. **No** son recetas publicadas por esas instituciones y no se les debe atribuir; solo se citan como fuente de los criterios (las URL se verificaron). `allergenHits()` compara la alergia del niño con los alérgenos de la receta (con sinónimos); por defecto se ocultan las recetas con alérgenos del niño. Al agregar recetas: ingredientes, pasos, alérgenos, `ageMin`, nota de seguridad y fuentes.
+
+Cómo funciona la fase 2:
+- Sin `.env` la app arranca en demostración. Con `.env` pide cuenta; la demostración sigue disponible ("Probar en modo demostración").
+- La estructura de `S` es la misma en demo y nube. En la nube cada lista (feed, tasks, docs…) son filas de la tabla `items` y los ajustes de `settings`. `update()` calcula la diferencia y guarda; un refresco trae los cambios de otros (tiempo real + respaldo cada 30 s).
+- **La privacidad la aplica la base de datos (RLS), no la app.** Si cambias qué ve un cuidador, cambia `can_read_item` / `caregiver_can_write` y agrega la prueba.
+- Cada cuenta pertenece a una sola familia. Personas: `p1`, `p2` (papás), `c1`, `c2`… (cuidadores). En la nube, `split` de gastos = porcentaje del primer papá (`PARENTS[0]`).
+- En la nube se ocultan las funciones que son simulación: cámaras, avisos de llegada, vincular calendarios, fotos. El menú de la semana es el ajuste `menu` (los cuidadores lo leen, no lo editan).
+
+Limitaciones conocidas (decidir antes de publicar):
+- Un cuidador puede reescribir los mensajes de la conversación de un evento (se guarda como un arreglo por evento). Mejor un renglón por mensaje.
+- Ajustes nuevos en la nube: `menu`, `favs`, `since` (los cuidadores los leen; solo los papás los cambian).
+- Los ajustes `pts`, `mile`, `have` se guardan completos: dos personas editándolos al mismo tiempo pueden pisarse.
+- Sin modo sin conexión: si falla el guardado se avisa y se vuelve a cargar lo de la nube.
+- No hay límite de intentos al probar códigos de invitación (10 caracteres, vencen a 7 días, una sola vez).
+- Archivos y fotos (documentos, recetas) no se suben: falta Supabase Storage con reglas por documento compartido. `expo-document-picker` para PDFs.
+- Avisos de llegada reales requieren `expo-location` + geocercas y una compilación con EAS (Expo Go no soporta ubicación en segundo plano).
+- El correo gratis de Supabase tiene límite bajo; configurar SMTP propio. Activar "Confirm email" antes de publicar.
+- Aviso de privacidad (ley mexicana) y consentimiento de cuidadores: pendientes.
 
 ## Permisos por rol (deben respetarse en fase 1 y en las reglas de Supabase en fase 2)
 | Sección | Papás | Cuidadores |

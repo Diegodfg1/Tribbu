@@ -1,5 +1,7 @@
 // Datos de ejemplo y utilidades de fechas.
 // En la fase 2 estos datos vivirán en Supabase; por ahora se guardan en el teléfono.
+import { MORE_ACTS, MORE_MATS } from './library';
+import { MILE_ITEMS } from './milestones';
 
 export const KIDS = {
   sofi: {
@@ -14,28 +16,40 @@ export const KIDS = {
   },
 };
 
+// [nombre completo, inicial, nombre corto]
 export const PEOPLE = {
-  yo: ['Tú (mamá)', 'T'], papa: ['Papá', 'P'], carmen: ['Abuela Carmen', 'C'],
-  jorge: ['Abuelo Jorge', 'J'], luis: ['Tío Luis', 'L'], ana: ['Ana (hermana)', 'A'],
+  yo: ['Tú (mamá)', 'T', 'mamá'], papa: ['Papá', 'P', 'papá'], carmen: ['Abuela Carmen', 'C', 'Abuela Carmen'],
+  jorge: ['Abuelo Jorge', 'J', 'Abuelo Jorge'], luis: ['Tío Luis', 'L', 'Tío Luis'], ana: ['Ana (hermana)', 'A', 'Ana'],
 };
 export const PARENTS = ['yo', 'papa'];
+export const nameOf = (k) => (PEOPLE[k] ? PEOPLE[k][0] : 'Alguien');
+export const letterOf = (k) => (PEOPLE[k] ? PEOPLE[k][1] : '?');
+export const shortOf = (k) => (PEOPLE[k] ? PEOPLE[k][2] : 'alguien');
 
 // Turno de la cuidadora que se usa en la vista "Abuela Carmen".
 export const SHIFT = { who: 'carmen', kid: 'sofi', from: '14:00', to: '19:00' };
 
-export const MATS = {
+// Personas de la familia con su rol. En la demostración son de ejemplo; con cuenta real vienen de Supabase.
+export const MEMBERS = [
+  { key: 'carmen', name: 'Abuela Carmen', role: 'caregiver', kid: 'sofi', from: '14:00', to: '19:00' },
+  { key: 'jorge', name: 'Abuelo Jorge', role: 'caregiver', kid: 'mateo', from: '16:00', to: '20:00' },
+];
+export const caregiverOf = (kidK) => MEMBERS.find((m) => m.role === 'caregiver' && m.kid === kidK);
+
+const BASE_MATS = {
   calcetines: 'Calcetines', cucharas: 'Cucharas', ollas: 'Ollas', almohadas: 'Almohadas', cobija: 'Cobija',
   harina: 'Harina', sal: 'Sal', agua: 'Agua', vasos: 'Vasos', cinta: 'Cinta adhesiva', linterna: 'Linterna',
   papel: 'Papel', crayones: 'Crayones', pasta: 'Pasta seca', cuerda: 'Cordón', tapas: 'Tapas de botella',
   caja: 'Caja de cartón', tijeras: 'Tijeras',
 };
+export const MATS = { ...BASE_MATS, ...MORE_MATS };
 
 export const SKILLS = {
-  motricidad: ['Motricidad', 'leaf'], logica: ['Lógica', 'sky'], lenguaje: ['Lenguaje', 'amber'],
-  creatividad: ['Creatividad', 'berry'], calma: ['Calma', 'sky'],
+  motricidad: ['Motricidad', 'leaf'], logica: ['Lógica', 'sky'], lenguaje: ['Lenguaje', 'sun'],
+  creatividad: ['Creatividad', 'berry'], calma: ['Calma', 'ink'],
 };
 
-export const ACTS = [
+const BASE_ACTS = [
   { id: 1, t: 'Memoria de calcetines', mats: ['calcetines'], age: [2, 5], min: 10, sk: 'logica', energy: 'Tranquila', why: 'Discriminación visual, emparejar y contar.', steps: ['Junta 6 a 10 pares de calcetines y revuélvelos en el piso.', 'Pídele que encuentre los pares, uno por uno.', 'Sube el reto: escondan un calcetín de cada par por la sala.', 'Cierra contando juntos cuántos pares encontraron.'] },
   { id: 2, t: 'Orquesta de cocina', mats: ['ollas', 'cucharas'], age: [1, 6], min: 15, sk: 'creatividad', energy: 'Movida', why: 'Ritmo, atención auditiva y turnos.', steps: ['Pon boca abajo 3 ollas de tamaños distintos.', 'Prueben qué suena más grave y más agudo.', 'Tú marcas un ritmo de 3 golpes y tu hijo lo repite.', 'Cambien los papeles: él dirige y tú repites.'] },
   { id: 3, t: 'Fuerte de almohadas', mats: ['almohadas', 'cobija'], age: [2, 9], min: 25, sk: 'creatividad', energy: 'Movida', why: 'Planeación, equilibrio y juego simbólico.', steps: ['Usen sillas o el sillón como paredes.', 'Cubran con la cobija y refuercen con almohadas.', 'Decidan juntos qué es: castillo, cueva o nave.', 'Lean o cuenten un cuento adentro para cerrar.'] },
@@ -49,6 +63,8 @@ export const ACTS = [
   { id: 11, t: 'Trasvasar agua', mats: ['agua', 'vasos', 'cucharas'], age: [1, 4], min: 15, sk: 'calma', energy: 'Tranquila', why: 'Concentración y control del movimiento.', steps: ['Pon una toalla en la mesa y dos vasos, uno con agua.', 'Pásenla con la cuchara de un vaso al otro.', 'Marquen con cinta hasta dónde llenar.', 'Al final, que ayude a secar todo.'] },
   { id: 12, t: 'Búsqueda del tesoro', mats: ['papel', 'crayones'], age: [5, 10], min: 25, sk: 'logica', energy: 'Movida', why: 'Lectura, deducción y orientación.', steps: ['Escribe o dibuja 5 pistas que lleven de un lugar a otro.', 'Esconde la última junto a un pequeño premio.', 'Si aún no lee, usa dibujos en las pistas.', 'Para cerrar, que esconda pistas para ti.'] },
 ];
+// Las 12 originales siempre están; el resto se desbloquea mes con mes (ver library.js).
+export const ACTS = [...BASE_ACTS.map((a) => ({ unlock: -1, ...a })), ...MORE_ACTS];
 
 export const RECIPES = [
   { id: 1, t: 'Hot cakes de plátano', by: 'Mamá', age: '1+', alg: ['Huevo'], min: 15, ing: ['1 plátano maduro', '2 huevos', '1/2 taza de avena'], steps: ['Machaca el plátano.', 'Mezcla con huevos y avena.', 'Cocina porciones pequeñas en sartén a fuego medio.'] },
@@ -68,15 +84,12 @@ export const AISLES = [
 ];
 export const aisleOf = (n) => AISLES.find(([, r]) => r.test(n))[0];
 
-export const MILESTONES = {
-  sofi: [['m1', 'Salta en un pie', 5], ['m2', 'Dibuja una persona con 3 partes', 10], ['m3', 'Cuenta 10 objetos', 8], ['m4', 'Se viste sola con poca ayuda', null], ['m5', 'Cuenta una historia corta', 6], ['m6', 'Ensarta cuentas o pasta', 7]],
-  mateo: [['n1', 'Lee frases cortas en voz alta', 12], ['n2', 'Ata sus agujetas', null], ['n3', 'Suma y resta hasta 20', 9], ['n4', 'Sigue instrucciones de 3 pasos', 12], ['n5', 'Camina en línea recta sin caerse', 5]],
-};
-
 export const CHORES = {
   sofi: [['Recoger juguetes', 5], ['Lavarse los dientes sin recordar', 3], ['Ayudar a poner la mesa', 5], ['Dormir en su cama', 5]],
   mateo: [['Hacer la tarea solo', 5], ['Poner la mesa', 5], ['Bañarse sin repelar', 3], ['Leer 15 minutos', 5]],
 };
+// Quehaceres y recompensas de la demostración (en tus datos los creas tú; abajo hay sugerencias para empezar).
+export const choresOf = (kk) => CHORES[kk] || CHORES.sofi;
 export const REWARDS = [['Cuento extra', 10], ['Elegir la cena del viernes', 20], ['Parque con papá el sábado', 30]];
 
 export const CAMS = [
@@ -114,10 +127,11 @@ export const now = () => { const d = new Date(); return `${String(d.getHours()).
 export const todayIdx = (today.getDay() + 6) % 7; // 0 = lunes
 export const money = (n) => '$' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
-const DAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+export const DAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+export const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 export const dayShort = (d) => DAYS[d.getDay()].slice(0, 3);
 export const dayLong = (d) => `${DAYS[d.getDay()]} ${d.getDate()}`;
+export const todayKey = () => dk(new Date());
 export const dateLong = (d) => `${DAYS[d.getDay()]} ${d.getDate()} de ${MONTHS[d.getMonth()]}`;
 
 const E = (n, time, t, kid, tag) => ({ d: dk(addD(n)), time, t, kid, tag });
@@ -139,10 +153,19 @@ export const EXT_EVENTS = [
 ].map(([src, n, time, end, t]) => ({ src, d: dk(addD(n)), time, end, t }));
 
 // ---------- Estado inicial ----------
+// Avance de hitos de ejemplo para la demostración (Sofi y Mateo).
+function demoMile() {
+  const mile = {};
+  MILE_ITEMS.filter((i) => !i.tips && i.m <= 36).forEach((i) => { mile[`sofi|${i.id}`] = dk(addD(-40)); });
+  MILE_ITEMS.filter((i) => i.m === 48).slice(0, 9).forEach((i) => { mile[`sofi|${i.id}`] = dk(addD(-4)); });
+  MILE_ITEMS.filter((i) => i.m === 72).slice(0, 6).forEach((i) => { mile[`mateo|${i.id}`] = dk(addD(-10)); });
+  return mile;
+}
+
 export function fresh() {
   const k = (i) => evKey(BASE_EVENTS[i]);
   return {
-    v: 1, kid: 'sofi', role: 'padres', view: 'hoy', jtab: 'act', ctab: 'menu', skill: null,
+    v: 1, kid: 'sofi', role: 'padres', view: 'hoy', jtab: 'act', ctab: 'menu', skill: null, afilter: 'all', favs: [], since: dk(today).slice(0, 7),
     have: ['calcetines', 'cucharas', 'ollas', 'vasos', 'papel', 'crayones', 'cinta', 'agua'],
     tasks: [
       { id: 1, t: 'Comprar pañales talla 4', who: 'yo', done: false },
@@ -175,7 +198,7 @@ export function fresh() {
       { id: 3, t: 'Natación (mensualidad)', amt: 1100, paid: 'papa', split: 50 },
       { id: 4, t: 'Uniforme de ballet', amt: 650, paid: 'yo', split: 50 },
     ],
-    copa: false, pts: { sofi: 14, mateo: 26 }, mile: { m1: true, m3: true, n1: true, n5: true },
+    copa: false, pts: { sofi: 14, mateo: 26 }, mile: demoMile(),
     evchat: {
       [k(2)]: [{ who: 'yo', txt: 'La mochila de ballet está junto a la puerta. Las zapatillas van adentro.', t: '08:05' }],
       [k(8)]: [{ who: 'papa', txt: '¿Quién compra el regalo?', t: '09:12' }, { who: 'carmen', txt: 'Yo paso a la juguetería el viernes.', t: '09:40' }],
@@ -185,17 +208,134 @@ export function fresh() {
   };
 }
 
+// ---------- Datos de ejemplo vs. familia real ----------
+// Las pantallas leen KIDS, PEOPLE, SHIFT, MEMBERS… directamente. Aquí se cambian "en su lugar" entre la
+// demostración y los datos de la familia que inició sesión.
+const clone = (x) => JSON.parse(JSON.stringify(x));
+const setObj = (t, src) => { Object.keys(t).forEach((k) => { delete t[k]; }); Object.assign(t, src); };
+const setArr = (t, src) => { t.splice(0, t.length, ...src); };
+const DEMO = {
+  KIDS: clone(KIDS), PEOPLE: clone(PEOPLE), PARENTS: [...PARENTS], SHIFT: { ...SHIFT }, MEMBERS: clone(MEMBERS),
+  BASE_EVENTS: clone(BASE_EVENTS), EXT_EVENTS: clone(EXT_EVENTS), ARRIVALS: clone(ARRIVALS), CAMS: clone(CAMS), CAM_EVENTS: clone(CAM_EVENTS),
+};
+export function setDemoWorld() {
+  setObj(KIDS, clone(DEMO.KIDS)); setObj(PEOPLE, clone(DEMO.PEOPLE)); setArr(PARENTS, DEMO.PARENTS); setObj(SHIFT, { ...DEMO.SHIFT });
+  setArr(MEMBERS, clone(DEMO.MEMBERS)); setArr(BASE_EVENTS, clone(DEMO.BASE_EVENTS)); setArr(EXT_EVENTS, clone(DEMO.EXT_EVENTS));
+  setArr(ARRIVALS, clone(DEMO.ARRIVALS)); setArr(CAMS, clone(DEMO.CAMS)); setArr(CAM_EVENTS, clone(DEMO.CAM_EVENTS));
+}
+// kids: filas de la tabla kids [{key, data}]; members: filas de members; meKey: person_key de quien inició sesión.
+export function setFamilyWorld({ kids, members, meKey }) {
+  const k = {};
+  kids.forEach((r) => {
+    k[r.key] = { allergy: 'Ninguna conocida', blood: 'Sin registrar', ped: 'Sin registrar', ins: 'Sin registrar', routine: [], age: 0, ...r.data };
+  });
+  setObj(KIDS, k);
+  const people = {};
+  members.forEach((m) => { people[m.person_key] = [m.display_name, (m.display_name[0] || '?').toUpperCase(), m.display_name]; });
+  setObj(PEOPLE, people);
+  setArr(PARENTS, members.filter((m) => m.role === 'parent').map((m) => m.person_key));
+  setArr(MEMBERS, members.map((m) => ({ key: m.person_key, name: m.display_name, role: m.role, kid: m.kid_key, from: m.shift_from, to: m.shift_to })));
+  const mine = members.find((m) => m.person_key === meKey);
+  const cg = mine && mine.role === 'caregiver' ? mine : members.find((m) => m.role === 'caregiver');
+  setObj(SHIFT, cg
+    ? { who: cg.person_key, kid: cg.kid_key, from: cg.shift_from, to: cg.shift_to }
+    : { who: '', kid: Object.keys(k)[0] || '', from: '00:00', to: '23:59' });
+  [BASE_EVENTS, EXT_EVENTS, ARRIVALS, CAMS, CAM_EVENTS].forEach((a) => setArr(a, []));
+}
+
 // ---------- Derivados según el rol ----------
 export const isCG = (S) => S.role === 'cuidador';
 export const kidKey = (S) => (isCG(S) ? SHIFT.kid : S.kid);
-export const me = (S) => (isCG(S) ? 'carmen' : 'yo');
+export const isCloud = (S) => !!S.cloud;
+export const isBlank = (S) => !!S.blank;
+// Con datos propios (cuenta real o modo en blanco) no se usan los datos de ejemplo.
+export const isOwn = (S) => !!(S.cloud || S.blank);
+export const me = (S) => S.me || (isCG(S) ? 'carmen' : 'yo');
 
 export function dayEvents(S, d) {
-  const fam = [...BASE_EVENTS.filter((e) => e.d === d), ...S.myevents.filter((e) => e.d === d)]
+  const gone = S.delev || [];
+  const fam = [...BASE_EVENTS.filter((e) => e.d === d).map((e) => ({ ...e, base: true })), ...S.myevents.filter((e) => e.d === d)]
+    .filter((e) => !gone.includes(evKey(e)))
     .map((e) => ({ ...e, src: 'familia', end: e.end || addMin(e.time, 60) }));
-  const ext = EXT_EVENTS.filter((e) => e.d === d && S.cal[e.src] && S.cal[e.src].on);
+  const ext = (S.extevents || EXT_EVENTS).filter((e) => e.d === d && S.cal[e.src] && S.cal[e.src].on);
   const all = [...fam, ...ext].sort((a, b) => mins(a.time) - mins(b.time));
   return { fam, ext, all };
 }
-export const inShift = (e) => e.d === dk(today) && e.kid === SHIFT.kid && mins(e.time) >= mins(SHIFT.from) && mins(e.time) < mins(SHIFT.to);
-export const allRecipes = (S) => [...S.myrecs, ...RECIPES];
+export const inShift = (e) => e.d === dk(today) && (
+  (evKids(e).includes(SHIFT.kid) && mins(e.time) >= mins(SHIFT.from) && mins(e.time) < mins(SHIFT.to)) || evPeople(e).includes(SHIFT.who));
+export const allRecipes = (S) => [...S.myrecs, ...(isOwn(S) ? [] : RECIPES)];
+// Menú de la semana: [día, id de receta o null]. En la demostración es el menú de ejemplo.
+export const BLANK_MENU = () => ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'].map((d) => [d, null]);
+export const menuOf = (S) => S.menu || MENU;
+export const arrivalsOf = (S) => S.arr || ARRIVALS;
+// Receta que toca hoy según el menú (lunes a viernes); null si no hay.
+export const todayRecipe = (S) => {
+  const m = menuOf(S)[todayIdx];
+  return m && m[1] != null ? allRecipes(S).find((x) => x.id === m[1]) || null : null;
+};
+export const camsOf = (S) => S.cams || CAMS;
+export const camEventsOf = (S) => S.camev || CAM_EVENTS;
+
+// ---------- Bitácora: cada registro tiene fecha (d) y hora (t) ----------
+// Los registros antiguos no traían fecha: se deduce de su id (que era la hora de creación) o se asume hoy.
+export const feedDay = (x) => x.d || (x.id > 1e12 ? dk(new Date(x.id)) : dk(today));
+export const feedSort = (a, b) => (feedDay(a) + a.t).localeCompare(feedDay(b) + b.t);
+// Crea un registro de bitácora con los datos de quien lo hace y del momento actual.
+export const mkFeed = (S, o) => ({ id: Date.now(), who: me(S), kid: kidKey(S), d: todayKey(), t: now(), lvl: 'info', ...o });
+
+// ---------- Actividades favoritas y rotación mensual ----------
+export const monthOf = (d) => dk(d).slice(0, 7); // '2026-10'
+const monthNum = (k) => Number(k.slice(0, 4)) * 12 + Number(k.slice(5, 7)) - 1;
+// Meses transcurridos desde que la familia empezó a usar la app (0 = el primer mes).
+export const monthsUsed = (S) => Math.max(0, monthNum(monthOf(new Date())) - monthNum(S.since || monthOf(new Date())));
+export const isNewAct = (a, S) => a.unlock >= 0 && a.unlock === monthsUsed(S);
+export const unlockedActs = (S) => ACTS.filter((a) => a.unlock <= monthsUsed(S));
+export const lockedCount = (S) => ACTS.filter((a) => a.unlock > monthsUsed(S)).length;
+export const favsOf = (S) => S.favs || [];
+export const monthName = (d) => MONTHS[d.getMonth()];
+
+// Pendientes: primero los abiertos (con fecha límite más próxima antes), al final los hechos.
+export const tasksSorted = (tasks) => [...tasks].sort((a, b) => {
+  if (a.done !== b.done) return a.done ? 1 : -1;
+  if (a.due && b.due) return a.due.localeCompare(b.due);
+  if (a.due) return -1;
+  if (b.due) return 1;
+  return (Number(b.id) || 0) - (Number(a.id) || 0);
+});
+export const dayOfYear = (d = new Date()) => Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
+
+// ---------- Eventos y pendientes para varias personas ----------
+// Un evento puede ser de uno o varios niños (`kids`) y de papás o cuidadores (`people`). `kid` queda como el primero
+// (los eventos antiguos solo traían `kid`). Un pendiente puede tener varias personas (`whos`); `who` es la primera.
+export const evKids = (e) => (e.kids ? e.kids : e.kid ? [e.kid] : []);
+export const evPeople = (e) => e.people || [];
+export const taskWhos = (t) => (t.whos && t.whos.length ? t.whos : t.who ? [t.who] : []);
+// «Sofi y Mateo», «Toda la familia», etc.
+export function whoText(kids, people) {
+  const allKids = Object.keys(KIDS);
+  const allPeople = MEMBERS.map((m) => m.key);
+  const kidsAll = allKids.length > 1 && allKids.every((k) => kids.includes(k));
+  const peopleAll = allPeople.length > 1 && allPeople.every((p) => people.includes(p));
+  if (kidsAll && peopleAll) return 'Toda la familia';
+  const parts = [];
+  if (kidsAll) parts.push('Todos los niños'); else kids.forEach((k) => { if (KIDS[k]) parts.push(KIDS[k].name); });
+  if (peopleAll) parts.push('Todos los adultos'); else people.forEach((p) => parts.push(nameOf(p)));
+  return parts.join(', ');
+}
+
+// ---------- Materiales y actividades propias ----------
+export const matsOf = (S) => { const m = { ...MATS }; (S.mymats || []).forEach((x) => { m[x.id] = x.label; }); return m; };
+export const actsOf = (S) => [...unlockedActs(S), ...(S.myacts || [])];
+export const actById = (S, id) => ACTS.find((a) => a.id === id) || (S.myacts || []).find((a) => a.id === id);
+
+// ---------- Quehaceres y recompensas ----------
+// Con tus datos (S.chores / S.rewards) son los que creaste; en la demostración, los de ejemplo.
+export const choresFor = (S, kk) => (S.chores
+  ? S.chores.filter((c) => c.kid === 'all' || c.kid === kk)
+  : choresOf(kk).map(([t, pts], i) => ({ id: `d${i}`, t, pts, kid: kk })));
+export const rewardsFor = (S) => S.rewards || REWARDS.map(([t, pts], i) => ({ id: `d${i}`, t, pts }));
+// En la demostración la primera edición convierte los ejemplos en listas propias.
+export const demoChores = () => Object.keys(KIDS).flatMap((k) => choresOf(k).map(([t, pts], i) => ({ id: `d${k}${i}`, t, pts, kid: k })));
+export const demoRewards = () => REWARDS.map(([t, pts], i) => ({ id: `d${i}`, t, pts }));
+export const CHORE_IDEAS = [['Recoger los juguetes', 5], ['Lavarse los dientes sin que se lo recuerden', 3], ['Ayudar a poner la mesa', 5], ['Dormir en su cama', 5], ['Hacer la tarea', 5], ['Bañarse sin repelar', 3]];
+export const REWARD_IDEAS = [['Cuento extra', 10], ['Elegir la cena del viernes', 20], ['Un paseo al parque', 30], ['Noche de película en familia', 40]];

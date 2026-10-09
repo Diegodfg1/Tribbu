@@ -5,7 +5,7 @@ import { fresh } from './data';
 // Estado de la app guardado en el teléfono.
 // Fase 2: este archivo se conecta a Supabase para sincronizar entre teléfonos.
 const KEY = 'tribbu-estado-v1';
-const StoreCtx = createContext(null);
+export const StoreCtx = createContext(null);
 
 export function StoreProvider({ children }) {
   const [S, setS] = useState(null);

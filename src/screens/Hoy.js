@@ -1,47 +1,64 @@
 import React, { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { ACTS, ARRIVALS, KIDS, PEOPLE, SHIFT, dateLong, dayEvents, dk, evKey, inShift, isCG, kidKey, today } from '../data';
+import { KIDS, SHIFT, arrivalsOf, caregiverOf, dateLong, dayEvents, dayOfYear, dk, evKey, evKids, favsOf, inShift, isCG, isNewAct, kidKey, monthName, nameOf, tasksSorted, today, actsOf, unlockedActs } from '../data';
 import { ActCard, PinIcon, SunMark, TaskRow } from '../parts';
-import { DEMOS } from '../scenes';
-import { ActivitySheet, BoardScreen, EventSheet, LogSheet } from '../sheets';
+import { TaskEditor } from '../editors';
+import { ActivitySheet, BoardScreen, EventSheet, QuickLog } from '../sheets';
 import { useStore } from '../store';
 import { useTheme } from '../theme';
 import { summarizeDay } from '../ai';
-import { Avatar, Between, Btn, Card, Pill, Row, T, useUI } from '../ui';
+import { Avatar, Between, Btn, Card, Pill, Row, Seg, T, useUI } from '../ui';
+import Resumen from './Resumen';
 
-function QuickLog() {
-  const c = useTheme();
-  const { S } = useStore();
-  const { openSheet } = useUI();
-  const items = [['Comió', 'C', c.leafBg], ['Siesta', 'Z', c.skyBg], ['Baño', 'B', c.amberBg], ['Ánimo', 'A', c.sun], ['Medicina', 'M', c.berryBg], ['Golpe', '!', c.berryBg]];
-  return (
-    <>
-      <T v="label">{`Registro rápido de ${KIDS[kidKey(S)].name}`}</T>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        {items.map(([n, i, bg]) => (
-          <Pressable key={n} onPress={() => openSheet(<LogSheet kind={n} />)} accessibilityRole="button"
-            style={{ width: '31.5%', borderWidth: 1.5, borderColor: c.line, backgroundColor: c.paper, borderRadius: 16, paddingVertical: 10, alignItems: 'center', gap: 4 }}>
-            <Avatar letter={i} bg={bg} fg={c.ink} size={30} />
-            <T v="bold" style={{ fontSize: 12.5 }}>{n}</T>
-          </Pressable>
-        ))}
-      </View>
-    </>
-  );
-}
-
+// La idea de hoy rota cada día: primero las nuevas del mes, luego las favoritas y después las demás.
 function Idea() {
   const { S } = useStore();
   const { openSheet } = useUI();
   const k = KIDS[kidKey(S)];
-  const fit = ACTS.filter((a) => k.age >= a.age[0] && k.age <= a.age[1] && a.mats.every((m) => S.have.includes(m)));
-  const pick = fit.find((a) => DEMOS[a.id]) || fit[0];
-  if (!pick) return null;
+  const fit = actsOf(S).filter((a) => k.age >= a.age[0] && k.age <= a.age[1] && a.mats.every((m) => S.have.includes(m)));
+  const fav = favsOf(S);
+  const pool = [...fit.filter((a) => isNewAct(a, S)), ...fit.filter((a) => fav.includes(a.id)), ...fit].filter((a, i, arr) => arr.indexOf(a) === i);
+  if (!pool.length) return null;
+  const pick = pool[dayOfYear() % pool.length];
   return (
     <>
       <T v="label">Idea para hoy, con lo que hay en casa</T>
       <ActCard a={pick} onPress={() => openSheet(<ActivitySheet id={pick.id} />)} />
     </>
+  );
+}
+
+// Aviso de que hay actividades nuevas este mes.
+function NewBanner() {
+  const c = useTheme();
+  const { S, update } = useStore();
+  const n = unlockedActs(S).filter((a) => isNewAct(a, S)).length;
+  if (!n) return null;
+  return (
+    <Card bg={c.amberBg} border={c.amberBg} style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <View style={{ flex: 1 }}>
+        <T v="bold">{`${n} actividades nuevas en ${monthName(new Date())}`}</T>
+        <T v="small" color={c.ink}>Cada mes se suman actividades nuevas para que no se repitan.</T>
+      </View>
+      <Btn sm kind="sun" onPress={() => update((d) => { d.view = 'jugar'; d.jtab = 'act'; d.afilter = 'new'; })}>Verlas</Btn>
+    </Card>
+  );
+}
+
+// Pendientes de la familia, a la vista en la pantalla inicial.
+function PendingCard() {
+  const { S, update } = useStore();
+  const { openFull } = useUI();
+  const open = tasksSorted(S.tasks).filter((t) => !t.done);
+  return (
+    <Card style={{ gap: 0 }}>
+      <Between style={{ marginBottom: 4 }}>
+        <T v="h3">Pendientes</T>
+        <Btn sm kind="ghost" onPress={() => openFull(<TaskEditor id={null} />)}>Agregar</Btn>
+      </Between>
+      {open.length ? open.slice(0, 5).map((t, i) => <TaskRow key={t.id} t={t} first={i === 0} onEdit={(id) => openFull(<TaskEditor id={id} />)} />) : <T v="small">No hay pendientes. ¡Todo al día!</T>}
+      {open.length > 5 ? <Btn sm kind="ghost" style={{ alignSelf: 'flex-start', marginTop: 6 }} onPress={() => update((d) => { d.view = 'agenda'; })}>{`Ver los ${open.length} en Agenda`}</Btn> : null}
+    </Card>
   );
 }
 
@@ -59,10 +76,12 @@ function EventLine({ e, sub }) {
 export default function Hoy() {
   const c = useTheme();
   const { S, update } = useStore();
-  const { openFull } = useUI();
+  const { openFull, toast } = useUI();
   const [busy, setBusy] = useState(false);
+  const [sub, setSub] = useState('hoy');
   const kk = kidKey(S);
   const k = KIDS[kk];
+  const care = caregiverOf(kk);
 
   if (isCG(S)) {
     const mine = S.tasks.filter((t) => t.who === SHIFT.who);
@@ -73,7 +92,7 @@ export default function Hoy() {
           <SunMark />
           <T v="label" color={c.sunInk}>Tu turno de hoy</T>
           <T v="h2" color={c.sunInk}>{`Cuidas a ${k.name} de ${SHIFT.from} a ${SHIFT.to}`}</T>
-          <T color={c.sunInk}>La recoges en el Kínder Montessori a las 14:00.</T>
+          <T color={c.sunInk}>Aquí tienes lo necesario para tu turno.</T>
         </View>
         <Card>
           <T v="h3">Lo que necesitas saber</T>
@@ -90,31 +109,40 @@ export default function Hoy() {
           {mine.map((t, i) => <TaskRow key={t.id} t={t} first={i === 0} />)}
         </Card>
         <QuickLog />
+        <NewBanner />
         <Idea />
       </>
     );
   }
 
-  const evs = dayEvents(S, dk(today)).fam.filter((e) => e.kid === kk);
-  const arr = ARRIVALS.filter((a) => S.locs[a.who]);
+  // Papás: pueden alternar entre Hoy y el resumen general.
+  // Eventos de este niño y los de adultos (sin niños asignados).
+  const evs = dayEvents(S, dk(today)).fam.filter((e) => evKids(e).includes(kk) || !evKids(e).length);
+  const arr = arrivalsOf(S).filter((a) => S.locs[a.who]);
   const summarize = async () => {
     setBusy(true);
     const s = await summarizeDay(S);
     update((d) => { d.summary = s; });
     setBusy(false);
+    toast('Resumen del día listo');
   };
+  const switcher = <Seg full options={[['hoy', 'Hoy'], ['resumen', 'Resumen']]} value={sub} onChange={setSub} />;
+  if (sub === 'resumen') return <>{switcher}<Resumen /></>;
   return (
     <>
+      {switcher}
       <View style={{ backgroundColor: c.sun, borderRadius: 24, padding: 16, gap: 8, overflow: 'hidden' }}>
         <SunMark />
         <T v="label" color={c.sunInk}>{`Hoy cuida a ${k.name}`}</T>
-        <Row>
-          <Avatar letter={kk === 'sofi' ? 'C' : 'J'} bg={c.paper} fg={c.ink} size={38} />
-          <View style={{ flex: 1 }}>
-            <T v="bold" color={c.sunInk}>{kk === 'sofi' ? 'Abuela Carmen' : 'Abuelo Jorge'}</T>
-            <T color={c.sunInk}>{`${kk === 'sofi' ? '14:00 a 19:00' : '16:00 a 20:00'} · solo ve lo de su turno`}</T>
-          </View>
-        </Row>
+        {care ? (
+          <Row>
+            <Avatar letter={(care.name[0] || '?').toUpperCase()} bg={c.paper} fg={c.ink} size={38} />
+            <View style={{ flex: 1 }}>
+              <T v="bold" color={c.sunInk}>{care.name}</T>
+              <T color={c.sunInk}>{`${care.from} a ${care.to} · solo ve lo de su turno`}</T>
+            </View>
+          </Row>
+        ) : <T color={c.sunInk}>{`Todavía no hay un cuidador asignado a ${k.name}. Invítalo desde Familia.`}</T>}
       </View>
       {arr.length ? (
         <Card>
@@ -122,16 +150,18 @@ export default function Hoy() {
           {arr.map((a, i) => (
             <Row key={i}>
               <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: c.leafBg, alignItems: 'center', justifyContent: 'center' }}><PinIcon /></View>
-              <T style={{ flex: 1 }}>{`${PEOPLE[a.who][0]} llegó a ${a.place}`}</T>
+              <T style={{ flex: 1 }}>{`${nameOf(a.who)} llegó a ${a.place}`}</T>
               <T v="num" style={{ fontSize: 14 }}>{a.t}</T>
             </Row>
           ))}
         </Card>
       ) : null}
+      <NewBanner />
       <Card>
         <Between><T v="h3">Próximo</T><T v="label">{dateLong(today)}</T></Between>
         {evs.length ? evs.map((e) => <EventLine key={evKey(e)} e={e} sub={<Pill tone="sky">{e.tag}</Pill>} />) : <T v="small">Nada más hoy. Buen momento para jugar.</T>}
       </Card>
+      <PendingCard />
       <Card>
         <Between><T v="h3">Resumen del día</T><Pill tone="sky">Con IA</Pill></Between>
         {S.summary
