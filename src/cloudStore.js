@@ -9,9 +9,9 @@ import { BLANK_MENU, KIDS, setFamilyWorld } from './data';
 import { T } from './ui';
 import { useTheme } from './theme';
 
-const LISTS = ['tasks', 'myrecs', 'feed', 'shop', 'docs', 'exp'];
-const NEWEST_FIRST = ['feed', 'tasks', 'exp', 'myrecs']; // se agregan con unshift
-const SETTING_KEYS = ['have', 'cal', 'locs', 'copa', 'camlog', 'pts', 'mile', 'summary', 'menu', 'favs', 'since'];
+const LISTS = ['tasks', 'myrecs', 'feed', 'shop', 'docs', 'exp', 'myacts', 'stories'];
+const NEWEST_FIRST = ['feed', 'tasks', 'exp', 'myrecs', 'stories']; // se agregan con unshift
+const SETTING_KEYS = ['have', 'cal', 'locs', 'copa', 'camlog', 'pts', 'mile', 'summary', 'menu', 'favs', 'since', 'chores', 'rewards', 'mymats'];
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const evId = (e) => `${e.d}|${e.time}|${e.t}`;
 // Las rutas de archivos locales (file://…) no sirven en otros teléfonos: no se sincronizan.
@@ -26,14 +26,14 @@ export function toRows(S) {
   (S.myevents || []).forEach((e) => rows.set(`myevents|${evId(e)}`, { collection: 'myevents', id: evId(e), data: e }));
   Object.entries(S.evchat || {}).forEach(([k, msgs]) => {
     const ev = (S.myevents || []).find((e) => evId(e) === k);
-    rows.set(`evchat|${k}`, { collection: 'evchat', id: k, data: { kid: ev ? ev.kid : null, msgs } });
+    rows.set(`evchat|${k}`, { collection: 'evchat', id: k, data: { kid: ev ? ev.kid : null, kids: ev ? (ev.kids || (ev.kid ? [ev.kid] : [])) : [], people: ev ? (ev.people || []) : [], msgs } });
   });
   return rows;
 }
 
 const defaultSettings = () => ({
   have: [], cal: { google: { on: false, mode: 'ocupado' }, outlook: { on: false, mode: 'ocupado' }, icloud: { on: false, mode: 'detalle' } },
-  locs: {}, copa: false, camlog: true, pts: {}, mile: {}, summary: null, menu: BLANK_MENU(), favs: [], since: null,
+  locs: {}, copa: false, camlog: true, pts: {}, mile: {}, summary: null, menu: BLANK_MENU(), favs: [], since: null, chores: [], rewards: [], mymats: [],
 });
 
 export function buildState(rows, settings, local) {

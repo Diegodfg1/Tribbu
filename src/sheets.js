@@ -6,8 +6,8 @@ import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  ACTS, KIDS, MATS, MEMBERS, SKILLS, SRC, addD, aisleOf, allRecipes, dateLong, dayEvents, dayShort, dk, evKey, fromKey,
-  inShift, isBlank, isCG, isCloud, isNewAct, kidKey, me, mkFeed, nameOf, now, tasksSorted, today, todayKey, todayRecipe,
+  ACTS, KIDS, MEMBERS, SKILLS, SRC, actById, addD, aisleOf, allRecipes, dateLong, dayEvents, dayShort, dk, evKey, fromKey,
+  evKids, evPeople, inShift, isBlank, isCG, isCloud, isNewAct, kidKey, matsOf, me, mkFeed, nameOf, now, tasksSorted, today, todayKey, todayRecipe, whoText,
 } from './data';
 import { DateField, TimeField } from './pickers';
 import { EventEditor } from './editors';
@@ -21,15 +21,18 @@ import { Avatar, Between, Btn, Card, Chip, Field, Pill, Row, SheetHead, T, confi
 // ---------- Actividad ----------
 export function ActivitySheet({ id }) {
   const c = useTheme();
-  const { S } = useStore();
+  const { S, update } = useStore();
   const { openSheet, openFull } = useUI();
-  const a = ACTS.find((x) => x.id === id);
+  const a = actById(S, id);
+  const MATS = matsOf(S);
+  const { toast, closeSheet } = useUI();
   const miss = a.mats.filter((m) => !S.have.includes(m));
   return (
     <>
       <SheetHead label={`${SKILLS[a.sk][0]} · ${a.energy}`} title={a.t} />
       <Row gap={8}>
         {isNewAct(a, S) ? <Pill tone="sun">Nueva este mes</Pill> : null}
+        {a.mine ? <Pill tone="sky">Tuya</Pill> : null}
         <FavButton id={a.id} size={26} />
       </Row>
       {a.mats.length ? <Row gap={6} wrap>{a.mats.map((m) => <Pill key={m} tone={S.have.includes(m) ? 'leaf' : 'berry'}>{MATS[m]}</Pill>)}</Row> : <T v="small">No necesitas materiales.</T>}
@@ -41,6 +44,12 @@ export function ActivitySheet({ id }) {
         <Btn kind="sun" style={{ flex: 1 }} onPress={() => openFull(<TimerScreen id={a.id} />)}>Empezar y guardar el teléfono</Btn>
         {miss.length ? <Btn kind="ghost" onPress={() => openSheet(<ChatSheet pre={`Quiero hacer "${a.t}" pero no tengo ${miss.map((m) => MATS[m]).join(', ')}. ¿Con qué lo sustituyo o qué actividad parecida hago?`} />)}>Alternativa</Btn> : null}
       </Row>
+      {a.mine && !isCG(S) ? (
+        <Btn kind="ghost" onPress={() => confirmAction('¿Eliminar esta actividad?', `«${a.t}»`, 'Eliminar', () => {
+          update((d) => { d.myacts = (d.myacts || []).filter((x) => x.id !== a.id); d.favs = (d.favs || []).filter((x) => x !== a.id); });
+          closeSheet(); toast('Actividad eliminada');
+        })}>Eliminar mi actividad</Btn>
+      ) : null}
     </>
   );
 }
@@ -93,7 +102,7 @@ export function TimerScreen({ id }) {
   const c = useTheme();
   const { update, S } = useStore();
   const { closeFull, toast } = useUI();
-  const a = ACTS.find((x) => x.id === id);
+  const a = actById(S, id);
   const total = a.min * 60;
   const [left, setLeft] = useState(total);
   const done = useRef(false);
@@ -217,7 +226,7 @@ export function EventSheet({ k }) {
   });
   return (
     <>
-      <SheetHead label={`${e.tag} · ${KIDS[e.kid] ? KIDS[e.kid].name : ''}`} title={e.t} sub={`${dateLong(fromKey(d))} · ${e.time} a ${e.end}`} />
+      <SheetHead label={`${e.tag} · ${whoText(evKids(e), evPeople(e))}`} title={e.t} sub={`${dateLong(fromKey(d))} · ${e.time} a ${e.end}`} />
       <T v="label">Conversación del evento</T>
       {ms.length ? ms.map((m, i) => {
         const mine = m.who === me(S);

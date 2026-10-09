@@ -2,15 +2,20 @@
 import React from 'react';
 import { Pressable, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
-import { KIDS, MATS, SKILLS, dateLong, favsOf, fromKey, isCG, isNewAct, kidKey, nameOf, todayKey } from './data';
+import { KIDS, SKILLS, dateLong, favsOf, fromKey, isCG, isNewAct, kidKey, matsOf, taskWhos, todayKey, whoText } from './data';
 import { DEMOS } from './scenes';
 import { useStore } from './store';
 import { F, useTheme } from './theme';
 import { Avatar, Check, Pill, Row, T, useUI } from './ui';
 
+// Color fijo de cada habilidad (marca): fondo del cuadro y color del trazo encima.
+export const skillColors = (c, sk) => ({
+  motricidad: [c.leaf, c.onAccent], logica: [c.sky, c.onAccent], lenguaje: [c.sun, c.sunInk], creatividad: [c.berry, c.onAccent], calma: [c.ink, c.paper],
+}[sk] || [c.paper2, c.ink]);
+
 export function Glyph({ sk, size = 34 }) {
   const c = useTheme();
-  const s = { fill: 'none', stroke: c.ink, strokeWidth: 3, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  const s = { fill: 'none', stroke: skillColors(c, sk)[1], strokeWidth: 3, strokeLinecap: 'round', strokeLinejoin: 'round' };
   return (
     <Svg width={size} height={size} viewBox="0 0 44 44">
       {sk === 'motricidad' && <Path d="M10 34c4-12 10-18 22-20M18 20l6 6" {...s} />}
@@ -46,9 +51,10 @@ export function ActCard({ a, i = 0, onPress }) {
   const c = useTheme();
   const { S } = useStore();
   const k = KIDS[kidKey(S)];
+  const MATS = matsOf(S);
   const miss = a.mats.filter((m) => !S.have.includes(m));
   const okAge = k.age >= a.age[0] && k.age <= a.age[1];
-  const sw = [c.sun, c.skyBg, c.leafBg, c.berryBg, c.amberBg][i % 5];
+  const sw = skillColors(c, a.sk)[0];
   // El corazón va al lado de la tarjeta (no dentro) para que su toque no abra la actividad.
   return (
     <View style={{ borderWidth: 1, borderColor: c.line, backgroundColor: c.paper, borderRadius: 18 }}>
@@ -58,6 +64,7 @@ export function ActCard({ a, i = 0, onPress }) {
           <T v="h3" style={{ paddingRight: 30 }}>{a.t}</T>
           <Row gap={4} wrap>
             {isNewAct(a, S) ? <Pill tone="sun">Nueva</Pill> : null}
+            {a.mine ? <Pill tone="sky">Tuya</Pill> : null}
             <Pill tone={SKILLS[a.sk][1]}>{SKILLS[a.sk][0]}</Pill>
             <Pill>{`${a.min} min`}</Pill>
             <Pill>{`${a.age[0]}–${a.age[1]} años`}</Pill>
@@ -87,7 +94,7 @@ export function TaskRow({ t, first, onEdit }) {
         }}>
           <T style={t.done ? { textDecorationLine: 'line-through', color: c.inkSoft } : null}>{t.t}</T>
           <Row gap={4} wrap style={{ marginTop: 3 }}>
-            <Pill>{nameOf(t.who)}</Pill>
+            <Pill>{whoText([], taskWhos(t))}</Pill>
             {t.due ? <Pill tone={overdue ? 'berry' : 'sky'}>{`${overdue ? 'Vencido · ' : 'Para el '}${dateLong(fromKey(t.due))}`}</Pill> : null}
           </Row>
         </Check>
@@ -138,5 +145,17 @@ export function PinIcon() {
       <Path d="M8 15s5-5 5-8.5A5 5 0 0 0 3 6.5C3 10 8 15 8 15z" fill={c.leaf} />
       <Circle cx="8" cy="6.5" r="1.8" fill={c.paper} />
     </Svg>
+  );
+}
+
+// Barra de avance (también se usa en el resumen). value y total son números; label es el texto para lectores de pantalla.
+export function ProgressBar({ value, total, color, height = 8, label }) {
+  const c = useTheme();
+  const pct = total > 0 ? Math.max(0, Math.min(100, (value / total) * 100)) : 0;
+  return (
+    <View accessibilityRole="progressbar" accessibilityLabel={label} accessibilityValue={{ min: 0, max: total, now: value }}
+      style={{ height, backgroundColor: c.paper2, borderRadius: height, overflow: 'hidden' }}>
+      <View style={{ height, width: `${pct}%`, backgroundColor: color || c.leaf, borderRadius: height }} />
+    </View>
   );
 }

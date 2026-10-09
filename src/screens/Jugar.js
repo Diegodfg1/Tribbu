@@ -1,23 +1,91 @@
-import React, { useEffect } from 'react';
-import { Pressable, View } from 'react-native';
-import { ACTS, KIDS, MATS, REWARDS, SKILLS, choresOf, favsOf, isCG, isCloud, isNewAct, kidKey, lockedCount, me, milestonesOf, mkFeed, monthOf, monthsUsed, unlockedActs } from '../data';
+import React, { useEffect, useState } from 'react';
+import { KIDS, SKILLS, actsOf, favsOf, isCG, isCloud, isNewAct, kidKey, lockedCount, matsOf, monthOf, monthsUsed } from '../data';
+import { UNSAFE_MSG, ideasFor, similarMatsOf, slug } from '../ideas';
+import Cuentos from './Cuentos';
+import Hitos from './Hitos';
+import Puntos from './Puntos';
 import { ActCard } from '../parts';
 import { ActivitySheet } from '../sheets';
 import { useStore } from '../store';
-import { F, useTheme } from '../theme';
-import { Between, Btn, Card, Check, Chip, Row, Seg, T, useUI } from '../ui';
+import { useTheme } from '../theme';
+import { Between, Btn, Card, Chip, Field, Pill, Row, Seg, SheetHead, T, confirmAction, useUI } from '../ui';
 
 const MONTH_CAP = 60; // tope de meses para la prueba de "avanzar un mes"
 
+// Ideas de actividad a partir de un objeto que tienes en casa (plantillas; no es IA).
+function ObjectSheet({ obj }) {
+  const c = useTheme();
+  const { S, update } = useStore();
+  const { openSheet, closeSheet, toast } = useUI();
+  const k = KIDS[kidKey(S)];
+  const r = ideasFor(obj, k.age, k.name);
+  const label = r.object ? r.object[0].toUpperCase() + r.object.slice(1) : '';
+  const id = r.object ? slug(r.object) : '';
+  const similar = r.object ? (() => {
+    const mats = similarMatsOf(r.object);
+    return actsOf(S).filter((a) => a.mats.some((m) => mats.includes(m))).slice(0, 3);
+  })() : [];
+  const addMat = (d) => {
+    d.mymats = d.mymats || [];
+    if (!d.mymats.some((x) => x.id === id)) d.mymats.push({ id, label });
+    if (!d.have.includes(id)) d.have.push(id);
+  };
+  const saveMat = () => { update((d) => { addMat(d); }); closeSheet(); toast(`«${label}» agregado a tus materiales`); };
+  const saveIdea = (idea) => {
+    update((d) => {
+      addMat(d);
+      d.myacts = d.myacts || [];
+      d.myacts.push({ id: Date.now() + Math.floor(Math.random() * 1000), t: idea.t, mats: idea.mats, age: idea.age, min: idea.min, sk: idea.sk, energy: idea.energy, why: idea.why, steps: idea.steps, mine: true });
+    });
+    closeSheet(); toast('Actividad guardada en tu lista');
+  };
+  if (r.unsafe) {
+    return (
+      <>
+        <SheetHead title="Mejor otro objeto" />
+        <Card bg={c.berryBg} border={c.berry}><T color={c.ink}>{UNSAFE_MSG}</T></Card>
+      </>
+    );
+  }
+  return (
+    <>
+      <SheetHead label="Ideas con lo que tienes en casa" title={label} />
+      <T v="small">{`${r.category ? `Lo reconocemos como: ${r.category}. ` : ''}Son ideas armadas con plantillas para ${k.name} (${k.age} años), no inventadas por IA. Acompáñalo siempre al jugar.`}</T>
+      {r.ideas.map((idea, i) => (
+        <Card key={i}>
+          <T v="h3">{idea.t}</T>
+          <Row gap={4} wrap>
+            <Pill tone={SKILLS[idea.sk][1]}>{SKILLS[idea.sk][0]}</Pill><Pill>{`${idea.min} min`}</Pill><Pill>{`${idea.age[0]}–${idea.age[1]} años`}</Pill>
+          </Row>
+          <T v="small">{idea.why}</T>
+          {idea.steps.map((st, j) => <T key={j}>{`${j + 1}. ${st}`}</T>)}
+          {idea.note ? <T v="small" color={c.berry}>{idea.note}</T> : null}
+          <Btn kind="sun" onPress={() => saveIdea(idea)}>Guardar esta actividad</Btn>
+        </Card>
+      ))}
+      {similar.length ? (
+        <>
+          <T v="label">Actividades que ya tienes y usan algo parecido</T>
+          {similar.map((a) => <Btn key={a.id} kind="ghost" onPress={() => openSheet(<ActivitySheet id={a.id} />)}>{a.t}</Btn>)}
+        </>
+      ) : null}
+      <Btn kind="ghost" onPress={saveMat}>Solo agregar «{label}» a mis materiales</Btn>
+    </>
+  );
+}
+
 function Activities() {
+  const c = useTheme();
   const { S, update } = useStore();
   const { openSheet, toast } = useUI();
   const k = KIDS[kidKey(S)];
+  const MATS = matsOf(S);
   const filter = S.afilter || 'all';
   const fav = favsOf(S);
+  const [obj, setObj] = useState('');
   // Los papás fijan el mes en que empezaron a usar las actividades (de ahí cuenta la rotación mensual).
   useEffect(() => { if (!S.since && !isCG(S)) update((d) => { d.since = monthOf(new Date()); }); }, []);
-  const open = unlockedActs(S);
+  const open = actsOf(S);
   const nNew = open.filter((a) => isNewAct(a, S)).length;
   const nFav = open.filter((a) => fav.includes(a.id)).length;
   const later = lockedCount(S);
@@ -28,6 +96,7 @@ function Activities() {
   list = [...list].sort((a, b) => score(a) - score(b));
   const ready = list.filter((a) => score(a) === 0).length;
   const all = Object.keys(MATS);
+  const mine = S.mymats || [];
   const advance = () => {
     update((d) => {
       const [y, m] = (d.since || monthOf(new Date())).split('-').map(Number);
@@ -35,9 +104,13 @@ function Activities() {
     });
     toast('Prueba: simulamos que pasó un mes');
   };
+  const ideas = () => {
+    if (!obj.trim()) { toast('Escribe un objeto que tengas en casa'); return; }
+    openSheet(<ObjectSheet obj={obj} />);
+  };
   return (
     <>
-      <Seg full options={[['all', 'Todas'], ['fav', `♥ Favoritas · ${nFav}`], ['new', `✨ Nuevas · ${nNew}`]]} value={filter} onChange={(v) => update((d) => { d.afilter = v; })} />
+      <Seg full options={[['all', 'Todas'], ['fav', `♥ Favoritas · ${nFav}`], ['new', `Nuevas · ${nNew}`]]} value={filter} onChange={(v) => update((d) => { d.afilter = v; })} />
       {filter === 'new' ? (
         <Card bg="transparent" border="transparent" style={{ padding: 0 }}>
           <T v="small">{`Cada mes se desbloquean actividades nuevas. ${later ? `Faltan ${later} por llegar en los próximos meses.` : 'Ya viste todas las que trae esta versión de la app; pronto habrá más.'}`}</T>
@@ -53,6 +126,29 @@ function Activities() {
           <Chip key={m} on={S.have.includes(m)} onPress={() => update((d) => { d.have = d.have.includes(m) ? d.have.filter((x) => x !== m) : [...d.have, m]; })}>{label}</Chip>
         ))}
       </Row>
+      {isCG(S) ? null : (
+        <Card>
+          <T v="h3">¿Tienes otro objeto en casa?</T>
+          <T v="small">Escríbelo y te sugerimos actividades para jugar con él, o lo agregas a tus materiales.</T>
+          <Row>
+            <Field style={{ flex: 1 }} placeholder="P. ej. rollo de papel de baño" value={obj} onChangeText={setObj} onSubmitEditing={ideas} returnKeyType="search" />
+            <Btn sm kind="sun" onPress={ideas}>Ver ideas</Btn>
+          </Row>
+          {mine.length ? (
+            <>
+              <T v="label">Tus objetos (toca uno para quitarlo)</T>
+              <Row gap={6} wrap>
+                {mine.map((x) => (
+                  <Chip key={x.id} onPress={() => confirmAction(`¿Quitar «${x.label}»?`, 'Dejará de aparecer en tus materiales. Las actividades que ya guardaste se quedan.', 'Quitar', () => {
+                    update((d) => { d.mymats = d.mymats.filter((y) => y.id !== x.id); d.have = d.have.filter((y) => y !== x.id); });
+                    toast(`«${x.label}» quitado`);
+                  })}>{`${x.label} ×`}</Chip>
+                ))}
+              </Row>
+            </>
+          ) : null}
+        </Card>
+      )}
       <Row gap={6} wrap>
         <Chip on={!S.skill} onPress={() => update((d) => { d.skill = null; })}>Todas</Chip>
         {Object.entries(SKILLS).map(([s, [label]]) => <Chip key={s} on={S.skill === s} onPress={() => update((d) => { d.skill = s; })}>{label}</Chip>)}
@@ -65,89 +161,16 @@ function Activities() {
   );
 }
 
-function Points() {
-  const c = useTheme();
-  const { S, update } = useStore();
-  const { toast } = useUI();
-  const kk = kidKey(S);
-  const k = KIDS[kk];
-  const p = S.pts[kk] || 0;
-  return (
-    <>
-      <Card style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <View>
-          <T v="label">{`Puntos de ${k.name}`}</T>
-          <T style={{ fontFamily: F.display, fontSize: 44, lineHeight: 48, fontVariant: ['tabular-nums'] }}>{String(p)}</T>
-        </View>
-        <T v="small" style={{ maxWidth: 160 }}>{isCG(S) ? 'Tú también puedes dar puntos.' : 'Cualquier cuidador puede dar puntos.'}</T>
-      </Card>
-      <Card>
-        <T v="h3">Quehaceres</T>
-        {choresOf(kk).map(([n, v], i) => (
-          <Between key={n} style={{ paddingVertical: 6, borderTopWidth: i ? 1 : 0, borderTopColor: c.line }}>
-            <T style={{ flex: 1 }}>{n}</T>
-            <Btn sm kind="sun" onPress={() => {
-              update((d) => { d.pts[kk] = (d.pts[kk] || 0) + v; d.feed.unshift(mkFeed(S, { kid: kk, kind: 'Puntos', txt: `+${v} por «${n}».` })); });
-              toast(`+${v} puntos para ${k.name}`);
-            }}>{`+${v}`}</Btn>
-          </Between>
-        ))}
-      </Card>
-      <Card>
-        <T v="h3">Recompensas</T>
-        {REWARDS.map(([n, v]) => (
-          <View key={n} style={{ gap: 6, paddingVertical: 4 }}>
-            <Between><T style={{ flex: 1 }}>{n}</T><T v="small">{`${Math.min(p, v)} / ${v}`}</T></Between>
-            <View style={{ height: 8, backgroundColor: c.paper2, borderRadius: 9, overflow: 'hidden' }}>
-              <View style={{ height: 8, width: `${Math.min(100, (p / v) * 100)}%`, backgroundColor: c.leaf, borderRadius: 9 }} />
-            </View>
-            {p >= v && !isCG(S) ? <Btn sm style={{ alignSelf: 'flex-start' }} onPress={() => { update((d) => { d.pts[kk] -= v; }); toast(`Canjeado: ${n}`); }}>Canjear</Btn> : null}
-          </View>
-        ))}
-        <T v="small">Los papás eligen y canjean las recompensas.</T>
-      </Card>
-    </>
-  );
-}
-
-function Milestones() {
-  const c = useTheme();
-  const { S, update } = useStore();
-  const { openSheet, toast } = useUI();
-  const kk = kidKey(S);
-  const ms = milestonesOf(kk);
-  const done = ms.filter((m) => S.mile[m[0]]).length;
-  return (
-    <>
-      <Between><T v="h2">{`Hitos de ${KIDS[kk].name}`}</T><T v="label">{`${done} de ${ms.length}`}</T></Between>
-      <T v="small">{`Guía orientativa para ${KIDS[kk].age} años. Cada niño tiene su ritmo; si algo te preocupa, coméntalo con su pediatra.`}</T>
-      <Card>
-        {ms.map(([id, t, act], i) => {
-          const a = ACTS.find((x) => x.id === act);
-          return (
-            <View key={id} style={{ paddingVertical: 8, borderTopWidth: i ? 1 : 0, borderTopColor: c.line, gap: 4 }}>
-              <Check on={!!S.mile[id]} label={t} onPress={() => { update((d) => { d.mile[id] = !d.mile[id]; }); toast(S.mile[id] ? 'Hito desmarcado' : '¡Hito logrado! 🎉'); }}><T>{t}</T></Check>
-              {a ? (
-                <Pressable onPress={() => openSheet(<ActivitySheet id={a.id} />)} style={{ marginLeft: 32 }}>
-                  <T v="small" color={c.sky} style={{ fontFamily: F.bold }}>{`Practícalo con «${a.t}»`}</T>
-                </Pressable>
-              ) : null}
-            </View>
-          );
-        })}
-      </Card>
-    </>
-  );
-}
-
 export default function Jugar() {
   const { S, update } = useStore();
-  const tabs = isCG(S) ? [['act', 'Actividades'], ['pts', 'Puntos']] : [['act', 'Actividades'], ['pts', 'Puntos'], ['mil', 'Hitos']];
+  const tabs = isCG(S)
+    ? [['act', 'Actividades'], ['pts', 'Puntos'], ['cuentos', 'Cuentos']]
+    : [['act', 'Actividades'], ['pts', 'Puntos'], ['mil', 'Hitos'], ['cuentos', 'Cuentos']];
   const tab = tabs.find((t) => t[0] === S.jtab) ? S.jtab : 'act';
   return (
     <>
       <Seg full options={tabs} value={tab} onChange={(v) => update((d) => { d.jtab = v; })} />
-      {tab === 'act' ? <Activities /> : tab === 'pts' ? <Points /> : <Milestones />}
+      {tab === 'act' ? <Activities /> : tab === 'pts' ? <Puntos /> : tab === 'mil' ? <Hitos /> : <Cuentos />}
     </>
   );
 }

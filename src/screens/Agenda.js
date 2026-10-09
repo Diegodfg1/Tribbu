@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import {
-  BASE_EVENTS, EXT_EVENTS, KIDS, MEMBERS, MONTHS, SHIFT, SRC, dateLong, dayEvents, dayLong, dayShort, dk, evKey, fromKey, inShift, isCG, isOwn, mins, overlaps, tasksSorted, today, todayKey,
+  BASE_EVENTS, EXT_EVENTS, KIDS, MEMBERS, MONTHS, SHIFT, SRC, dateLong, dayEvents, dayLong, dayShort, dk, evKey, evKids, evPeople, fromKey, inShift, isCG, isOwn, mins, overlaps, tasksSorted, today, todayKey, whoText,
 } from '../data';
 import { EventEditor, TaskEditor } from '../editors';
 import { TaskRow } from '../parts';
@@ -41,7 +41,7 @@ function EventRow({ e, ext, first, dayLbl }) {
       <View style={{ flex: 1, gap: 4 }}>
         <Pressable onPress={() => openSheet(<EventSheet k={evKey(e)} />)}><T v="bold">{e.t}</T></Pressable>
         <Row gap={4} wrap>
-          <Sq color={c.sun} /><Pill tone="sky">{e.tag}</Pill><Pill>{KIDS[e.kid].name}</Pill>
+          <Sq color={c.sun} /><Pill tone="sky">{e.tag}</Pill><Pill>{whoText(evKids(e), evPeople(e))}</Pill>
           {n ? <Pill tone="leaf">{`${n} mensaje${n > 1 ? 's' : ''}`}</Pill> : null}
         </Row>
         {clash ? (
@@ -50,7 +50,7 @@ function EventRow({ e, ext, first, dayLbl }) {
             <Btn sm style={{ alignSelf: 'flex-start' }} onPress={() => {
               const g = MEMBERS.find((x) => x.role === 'caregiver');
               if (!g) { toast('Primero invita a un cuidador desde Familia'); return; }
-              update((d) => { d.tasks.unshift({ id: Date.now(), t: `Cubrir: ${e.t} (${dayLbl}, ${e.time})`, who: g.key, done: false }); });
+              update((d) => { d.tasks.unshift({ id: Date.now(), t: `Cubrir: ${e.t} (${dayLbl}, ${e.time})`, who: g.key, whos: [g.key], done: false }); });
               toast(`Le pedimos apoyo a ${g.name}`);
             }}>Pedir apoyo a la red</Btn>
           </View>

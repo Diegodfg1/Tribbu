@@ -20,6 +20,7 @@ import Cocina from './src/screens/Cocina';
 import Familia from './src/screens/Familia';
 import Hoy from './src/screens/Hoy';
 import Jugar from './src/screens/Jugar';
+import { Logo } from './src/logo';
 
 const SCREENS = { hoy: Hoy, jugar: Jugar, agenda: Agenda, cocina: Cocina, familia: Familia, casa: Casa };
 const LABELS = { hoy: 'Hoy', jugar: 'Jugar', agenda: 'Agenda', cocina: 'Cocina', familia: 'Familia', casa: 'Casa' };
@@ -50,7 +51,7 @@ function Header() {
   return (
     <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 10, gap: 10, backgroundColor: c.bg }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={{ fontFamily: F.display, fontSize: 28, color: c.ink }}>Tribbu</Text>
+        <Logo width={112} />
         {cloud || blank ? null : <Seg options={[['padres', 'Papás'], ['cuidador', demoCare]]} value={S.role} onChange={setRole} />}
       </View>
       {blank ? (
@@ -76,7 +77,7 @@ function Header() {
       </Row>
       {cg ? (
         <View style={{ backgroundColor: c.amberBg, borderRadius: 12, padding: 10 }}>
-          <T v="small" color={c.ink}>{`🔒 Vista de cuidador: ${demoCare} solo ve su turno con ${KIDS[SHIFT.kid] ? KIDS[SHIFT.kid].name : ''} (${SHIFT.from} a ${SHIFT.to}), lo necesario para cuidar y todas las actividades.`}</T>
+          <T v="small" color={c.ink}>{`Vista de cuidador: ${demoCare} solo ve su turno con ${KIDS[SHIFT.kid] ? KIDS[SHIFT.kid].name : ''} (${SHIFT.from} a ${SHIFT.to}), lo necesario para cuidar y todas las actividades.`}</T>
         </View>
       ) : null}
     </View>
@@ -129,7 +130,7 @@ function Shell() {
       </ScrollView>
       <Pressable onPress={() => openSheet(<ChatSheet />)} accessibilityRole="button" accessibilityLabel="Pregúntale a Tribbu"
         style={{ position: 'absolute', right: 16, bottom: 14 + 64, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.sun, borderRadius: 99, paddingVertical: 11, paddingHorizontal: 16, elevation: 4, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } }}>
-        <Text style={{ fontFamily: F.bold, fontSize: 14, color: c.sunInk }}>✦ Pregúntale a Tribbu</Text>
+        <Text style={{ fontFamily: F.bold, fontSize: 14, color: c.sunInk }}>Pregúntale a Tribbu</Text>
       </Pressable>
       <TabBar tabs={tabs} />
     </View>

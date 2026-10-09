@@ -18,6 +18,7 @@ export function blankState({ myName, kids }) {
   return {
     v: 1, blank: true, kid: rows[0].key, role: 'padres', me: 'p1', view: 'hoy', jtab: 'act', ctab: 'menu', skill: null, afilter: 'all', favs: [], since: monthOf(new Date()),
     have: [], tasks: [], myrecs: [], feed: [], shop: [], docs: [], exp: [], myevents: [], evchat: {}, mile: {}, pts,
+    chores: [], rewards: [], mymats: [], myacts: [], stories: [],
     cal: { google: { on: false, mode: 'ocupado' }, outlook: { on: false, mode: 'ocupado' }, icloud: { on: false, mode: 'detalle' } },
     copa: false, locs: {}, camlog: true, summary: null,
     menu: BLANK_MENU(), cams: [], camev: [], arr: [], extevents: [],

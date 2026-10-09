@@ -1,6 +1,7 @@
 // Datos de ejemplo y utilidades de fechas.
 // En la fase 2 estos datos vivirán en Supabase; por ahora se guardan en el teléfono.
 import { MORE_ACTS, MORE_MATS } from './library';
+import { MILE_ITEMS } from './milestones';
 
 export const KIDS = {
   sofi: {
@@ -44,8 +45,8 @@ const BASE_MATS = {
 export const MATS = { ...BASE_MATS, ...MORE_MATS };
 
 export const SKILLS = {
-  motricidad: ['Motricidad', 'leaf'], logica: ['Lógica', 'sky'], lenguaje: ['Lenguaje', 'amber'],
-  creatividad: ['Creatividad', 'berry'], calma: ['Calma', 'sky'],
+  motricidad: ['Motricidad', 'leaf'], logica: ['Lógica', 'sky'], lenguaje: ['Lenguaje', 'sun'],
+  creatividad: ['Creatividad', 'berry'], calma: ['Calma', 'ink'],
 };
 
 const BASE_ACTS = [
@@ -83,19 +84,12 @@ export const AISLES = [
 ];
 export const aisleOf = (n) => AISLES.find(([, r]) => r.test(n))[0];
 
-export const MILESTONES = {
-  sofi: [['m1', 'Salta en un pie', 5], ['m2', 'Dibuja una persona con 3 partes', 10], ['m3', 'Cuenta 10 objetos', 8], ['m4', 'Se viste sola con poca ayuda', null], ['m5', 'Cuenta una historia corta', 6], ['m6', 'Ensarta cuentas o pasta', 7]],
-  mateo: [['n1', 'Lee frases cortas en voz alta', 12], ['n2', 'Ata sus agujetas', null], ['n3', 'Suma y resta hasta 20', 9], ['n4', 'Sigue instrucciones de 3 pasos', 12], ['n5', 'Camina en línea recta sin caerse', 5]],
-};
-
 export const CHORES = {
   sofi: [['Recoger juguetes', 5], ['Lavarse los dientes sin recordar', 3], ['Ayudar a poner la mesa', 5], ['Dormir en su cama', 5]],
   mateo: [['Hacer la tarea solo', 5], ['Poner la mesa', 5], ['Bañarse sin repelar', 3], ['Leer 15 minutos', 5]],
 };
-// Hitos y quehaceres: hay listas de ejemplo para Sofi y Mateo; para cualquier otro niño se usan según su edad.
-const ageList = (kk) => (KIDS[kk] && KIDS[kk].age <= 5 ? 'sofi' : 'mateo');
-export const milestonesOf = (kk) => MILESTONES[kk] || MILESTONES[ageList(kk)].map(([id, t, a]) => [`${kk}-${id}`, t, a]);
-export const choresOf = (kk) => CHORES[kk] || CHORES[ageList(kk)];
+// Quehaceres y recompensas de la demostración (en tus datos los creas tú; abajo hay sugerencias para empezar).
+export const choresOf = (kk) => CHORES[kk] || CHORES.sofi;
 export const REWARDS = [['Cuento extra', 10], ['Elegir la cena del viernes', 20], ['Parque con papá el sábado', 30]];
 
 export const CAMS = [
@@ -159,6 +153,15 @@ export const EXT_EVENTS = [
 ].map(([src, n, time, end, t]) => ({ src, d: dk(addD(n)), time, end, t }));
 
 // ---------- Estado inicial ----------
+// Avance de hitos de ejemplo para la demostración (Sofi y Mateo).
+function demoMile() {
+  const mile = {};
+  MILE_ITEMS.filter((i) => !i.tips && i.m <= 36).forEach((i) => { mile[`sofi|${i.id}`] = dk(addD(-40)); });
+  MILE_ITEMS.filter((i) => i.m === 48).slice(0, 9).forEach((i) => { mile[`sofi|${i.id}`] = dk(addD(-4)); });
+  MILE_ITEMS.filter((i) => i.m === 72).slice(0, 6).forEach((i) => { mile[`mateo|${i.id}`] = dk(addD(-10)); });
+  return mile;
+}
+
 export function fresh() {
   const k = (i) => evKey(BASE_EVENTS[i]);
   return {
@@ -195,7 +198,7 @@ export function fresh() {
       { id: 3, t: 'Natación (mensualidad)', amt: 1100, paid: 'papa', split: 50 },
       { id: 4, t: 'Uniforme de ballet', amt: 650, paid: 'yo', split: 50 },
     ],
-    copa: false, pts: { sofi: 14, mateo: 26 }, mile: { m1: true, m3: true, n1: true, n5: true },
+    copa: false, pts: { sofi: 14, mateo: 26 }, mile: demoMile(),
     evchat: {
       [k(2)]: [{ who: 'yo', txt: 'La mochila de ballet está junto a la puerta. Las zapatillas van adentro.', t: '08:05' }],
       [k(8)]: [{ who: 'papa', txt: '¿Quién compra el regalo?', t: '09:12' }, { who: 'carmen', txt: 'Yo paso a la juguetería el viernes.', t: '09:40' }],
@@ -258,7 +261,8 @@ export function dayEvents(S, d) {
   const all = [...fam, ...ext].sort((a, b) => mins(a.time) - mins(b.time));
   return { fam, ext, all };
 }
-export const inShift = (e) => e.d === dk(today) && e.kid === SHIFT.kid && mins(e.time) >= mins(SHIFT.from) && mins(e.time) < mins(SHIFT.to);
+export const inShift = (e) => e.d === dk(today) && (
+  (evKids(e).includes(SHIFT.kid) && mins(e.time) >= mins(SHIFT.from) && mins(e.time) < mins(SHIFT.to)) || evPeople(e).includes(SHIFT.who));
 export const allRecipes = (S) => [...S.myrecs, ...(isOwn(S) ? [] : RECIPES)];
 // Menú de la semana: [día, id de receta o null]. En la demostración es el menú de ejemplo.
 export const BLANK_MENU = () => ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'].map((d) => [d, null]);
@@ -299,3 +303,39 @@ export const tasksSorted = (tasks) => [...tasks].sort((a, b) => {
   return (Number(b.id) || 0) - (Number(a.id) || 0);
 });
 export const dayOfYear = (d = new Date()) => Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
+
+// ---------- Eventos y pendientes para varias personas ----------
+// Un evento puede ser de uno o varios niños (`kids`) y de papás o cuidadores (`people`). `kid` queda como el primero
+// (los eventos antiguos solo traían `kid`). Un pendiente puede tener varias personas (`whos`); `who` es la primera.
+export const evKids = (e) => (e.kids ? e.kids : e.kid ? [e.kid] : []);
+export const evPeople = (e) => e.people || [];
+export const taskWhos = (t) => (t.whos && t.whos.length ? t.whos : t.who ? [t.who] : []);
+// «Sofi y Mateo», «Toda la familia», etc.
+export function whoText(kids, people) {
+  const allKids = Object.keys(KIDS);
+  const allPeople = MEMBERS.map((m) => m.key);
+  const kidsAll = allKids.length > 1 && allKids.every((k) => kids.includes(k));
+  const peopleAll = allPeople.length > 1 && allPeople.every((p) => people.includes(p));
+  if (kidsAll && peopleAll) return 'Toda la familia';
+  const parts = [];
+  if (kidsAll) parts.push('Todos los niños'); else kids.forEach((k) => { if (KIDS[k]) parts.push(KIDS[k].name); });
+  if (peopleAll) parts.push('Todos los adultos'); else people.forEach((p) => parts.push(nameOf(p)));
+  return parts.join(', ');
+}
+
+// ---------- Materiales y actividades propias ----------
+export const matsOf = (S) => { const m = { ...MATS }; (S.mymats || []).forEach((x) => { m[x.id] = x.label; }); return m; };
+export const actsOf = (S) => [...unlockedActs(S), ...(S.myacts || [])];
+export const actById = (S, id) => ACTS.find((a) => a.id === id) || (S.myacts || []).find((a) => a.id === id);
+
+// ---------- Quehaceres y recompensas ----------
+// Con tus datos (S.chores / S.rewards) son los que creaste; en la demostración, los de ejemplo.
+export const choresFor = (S, kk) => (S.chores
+  ? S.chores.filter((c) => c.kid === 'all' || c.kid === kk)
+  : choresOf(kk).map(([t, pts], i) => ({ id: `d${i}`, t, pts, kid: kk })));
+export const rewardsFor = (S) => S.rewards || REWARDS.map(([t, pts], i) => ({ id: `d${i}`, t, pts }));
+// En la demostración la primera edición convierte los ejemplos en listas propias.
+export const demoChores = () => Object.keys(KIDS).flatMap((k) => choresOf(k).map(([t, pts], i) => ({ id: `d${k}${i}`, t, pts, kid: k })));
+export const demoRewards = () => REWARDS.map(([t, pts], i) => ({ id: `d${i}`, t, pts }));
+export const CHORE_IDEAS = [['Recoger los juguetes', 5], ['Lavarse los dientes sin que se lo recuerden', 3], ['Ayudar a poner la mesa', 5], ['Dormir en su cama', 5], ['Hacer la tarea', 5], ['Bañarse sin repelar', 3]];
+export const REWARD_IDEAS = [['Cuento extra', 10], ['Elegir la cena del viernes', 20], ['Un paseo al parque', 30], ['Noche de película en familia', 40]];

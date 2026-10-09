@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { KIDS, SHIFT, arrivalsOf, caregiverOf, dateLong, dayEvents, dayOfYear, dk, evKey, favsOf, inShift, isCG, isNewAct, kidKey, monthName, nameOf, tasksSorted, today, unlockedActs } from '../data';
+import { KIDS, SHIFT, arrivalsOf, caregiverOf, dateLong, dayEvents, dayOfYear, dk, evKey, evKids, favsOf, inShift, isCG, isNewAct, kidKey, monthName, nameOf, tasksSorted, today, actsOf, unlockedActs } from '../data';
 import { ActCard, PinIcon, SunMark, TaskRow } from '../parts';
 import { TaskEditor } from '../editors';
 import { ActivitySheet, BoardScreen, EventSheet, QuickLog } from '../sheets';
 import { useStore } from '../store';
 import { useTheme } from '../theme';
 import { summarizeDay } from '../ai';
-import { Avatar, Between, Btn, Card, Pill, Row, T, useUI } from '../ui';
+import { Avatar, Between, Btn, Card, Pill, Row, Seg, T, useUI } from '../ui';
+import Resumen from './Resumen';
 
 // La idea de hoy rota cada día: primero las nuevas del mes, luego las favoritas y después las demás.
 function Idea() {
   const { S } = useStore();
   const { openSheet } = useUI();
   const k = KIDS[kidKey(S)];
-  const fit = unlockedActs(S).filter((a) => k.age >= a.age[0] && k.age <= a.age[1] && a.mats.every((m) => S.have.includes(m)));
+  const fit = actsOf(S).filter((a) => k.age >= a.age[0] && k.age <= a.age[1] && a.mats.every((m) => S.have.includes(m)));
   const fav = favsOf(S);
   const pool = [...fit.filter((a) => isNewAct(a, S)), ...fit.filter((a) => fav.includes(a.id)), ...fit].filter((a, i, arr) => arr.indexOf(a) === i);
   if (!pool.length) return null;
@@ -36,7 +37,7 @@ function NewBanner() {
   return (
     <Card bg={c.amberBg} border={c.amberBg} style={{ flexDirection: 'row', alignItems: 'center' }}>
       <View style={{ flex: 1 }}>
-        <T v="bold">{`✨ ${n} actividades nuevas en ${monthName(new Date())}`}</T>
+        <T v="bold">{`${n} actividades nuevas en ${monthName(new Date())}`}</T>
         <T v="small" color={c.ink}>Cada mes se suman actividades nuevas para que no se repitan.</T>
       </View>
       <Btn sm kind="sun" onPress={() => update((d) => { d.view = 'jugar'; d.jtab = 'act'; d.afilter = 'new'; })}>Verlas</Btn>
@@ -77,6 +78,7 @@ export default function Hoy() {
   const { S, update } = useStore();
   const { openFull, toast } = useUI();
   const [busy, setBusy] = useState(false);
+  const [sub, setSub] = useState('hoy');
   const kk = kidKey(S);
   const k = KIDS[kk];
   const care = caregiverOf(kk);
@@ -113,7 +115,9 @@ export default function Hoy() {
     );
   }
 
-  const evs = dayEvents(S, dk(today)).fam.filter((e) => e.kid === kk);
+  // Papás: pueden alternar entre Hoy y el resumen general.
+  // Eventos de este niño y los de adultos (sin niños asignados).
+  const evs = dayEvents(S, dk(today)).fam.filter((e) => evKids(e).includes(kk) || !evKids(e).length);
   const arr = arrivalsOf(S).filter((a) => S.locs[a.who]);
   const summarize = async () => {
     setBusy(true);
@@ -122,8 +126,11 @@ export default function Hoy() {
     setBusy(false);
     toast('Resumen del día listo');
   };
+  const switcher = <Seg full options={[['hoy', 'Hoy'], ['resumen', 'Resumen']]} value={sub} onChange={setSub} />;
+  if (sub === 'resumen') return <>{switcher}<Resumen /></>;
   return (
     <>
+      {switcher}
       <View style={{ backgroundColor: c.sun, borderRadius: 24, padding: 16, gap: 8, overflow: 'hidden' }}>
         <SunMark />
         <T v="label" color={c.sunInk}>{`Hoy cuida a ${k.name}`}</T>

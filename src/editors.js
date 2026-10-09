@@ -2,13 +2,45 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { KIDS, MEMBERS, dayEvents, evKey, mins, nameOf, todayKey } from './data';
+import { KIDS, MEMBERS, dayEvents, evKey, evKids, evPeople, mins, nameOf, taskWhos, todayKey } from './data';
 import { DateField, TimeField, addMinutes } from './pickers';
 import { useStore } from './store';
 import { useTheme } from './theme';
 import { Btn, Chip, Field, Row, T, confirmAction, useUI } from './ui';
 
 const TAGS = ['Familia', 'Escuela', 'Clase', 'Salud', 'Turno'];
+
+// Selector de varios niños y varias personas (papás o cuidadores) con atajos de «todos».
+function WhoPicker({ kids, people, onKids, onPeople, withKids = true }) {
+  const allKids = Object.keys(KIDS);
+  const allPeople = MEMBERS.map((m) => m.key);
+  const toggle = (arr, k) => (arr.includes(k) ? arr.filter((x) => x !== k) : [...arr, k]);
+  const kidsAll = allKids.length > 0 && allKids.every((k) => kids.includes(k));
+  const peopleAll = allPeople.length > 0 && allPeople.every((p) => people.includes(p));
+  return (
+    <>
+      <Row gap={6} wrap>
+        <Chip on={(!withKids || kidsAll) && peopleAll} onPress={() => { const on = (!withKids || kidsAll) && peopleAll; if (withKids) onKids(on ? [] : allKids); onPeople(on ? [] : allPeople); }}>Toda la familia</Chip>
+      </Row>
+      {withKids ? (
+        <View style={{ gap: 6 }}>
+          <T v="label">Niños</T>
+          <Row gap={6} wrap>
+            {allKids.length > 1 ? <Chip on={kidsAll} onPress={() => onKids(kidsAll ? [] : allKids)}>Todos los niños</Chip> : null}
+            {allKids.map((k) => <Chip key={k} on={kids.includes(k)} onPress={() => onKids(toggle(kids, k))}>{KIDS[k].name}</Chip>)}
+          </Row>
+        </View>
+      ) : null}
+      <View style={{ gap: 6 }}>
+        <T v="label">{withKids ? 'Papás y cuidadores' : 'Personas'}</T>
+        <Row gap={6} wrap>
+          {allPeople.length > 1 ? <Chip on={peopleAll} onPress={() => onPeople(peopleAll ? [] : allPeople)}>{withKids ? 'Todos los adultos' : 'Todos'}</Chip> : null}
+          {allPeople.map((p) => <Chip key={p} on={people.includes(p)} onPress={() => onPeople(toggle(people, p))}>{nameOf(p)}</Chip>)}
+        </Row>
+      </View>
+    </>
+  );
+}
 
 function Screen({ title, onClose, children }) {
   const c = useTheme();
@@ -35,8 +67,8 @@ export function EventEditor({ k, date, onDone }) {
   const orig = editing ? dayEvents(S, k.split('|')[0]).fam.find((x) => evKey(x) === k) : null;
   const kids = Object.keys(KIDS);
   const [f, setF] = useState(() => (orig
-    ? { t: orig.t, kid: orig.kid, d: orig.d, time: orig.time, end: orig.end, tag: orig.tag || 'Familia' }
-    : { t: '', kid: kids.includes(S.kid) ? S.kid : kids[0], d: date || todayKey(), time: '17:00', end: '18:00', tag: 'Familia' }));
+    ? { t: orig.t, kids: evKids(orig), people: evPeople(orig), d: orig.d, time: orig.time, end: orig.end, tag: orig.tag || 'Familia' }
+    : { t: '', kids: [kids.includes(S.kid) ? S.kid : kids[0]], people: [], d: date || todayKey(), time: '17:00', end: '18:00', tag: 'Familia' }));
   const set = (x) => (v) => setF((o) => ({ ...o, [x]: v }));
   const marks = [...new Set([...S.myevents.map((e) => e.d)])];
   // Al cambiar el inicio, el fin se mueve igual para conservar la duración.
@@ -48,7 +80,8 @@ export function EventEditor({ k, date, onDone }) {
   const save = () => {
     if (!f.t.trim()) { toast('Escribe el nombre del evento'); return; }
     if (mins(f.end) <= mins(f.time)) { toast('La hora de fin debe ser después de la de inicio'); return; }
-    const ev = { d: f.d, time: f.time, end: f.end, t: f.t.trim(), kid: f.kid, tag: f.tag };
+    if (!f.kids.length && !f.people.length) { toast('Elige para quién es: un niño, un papá o un cuidador'); return; }
+    const ev = { d: f.d, time: f.time, end: f.end, t: f.t.trim(), kid: f.kids[0] || '', kids: f.kids, people: f.people, tag: f.tag };
     const newKey = evKey(ev);
     if (!editing && dayEvents(S, f.d).fam.some((x) => evKey(x) === newKey)) { toast('Ya existe un evento igual a esa hora'); return; }
     update((d) => {
@@ -85,15 +118,15 @@ export function EventEditor({ k, date, onDone }) {
         <TimeField label="Inicio" value={f.time} onChange={setStart} />
         <TimeField label="Fin" value={f.end} onChange={set('end')} />
       </Row>
-      <View style={{ gap: 6 }}>
-        <T v="label">Para quién</T>
-        <Row gap={6} wrap>{kids.map((x) => <Chip key={x} on={f.kid === x} onPress={() => set('kid')(x)}>{KIDS[x].name}</Chip>)}</Row>
+      <View style={{ gap: 8 }}>
+        <T v="label">Para quién (puedes elegir varios)</T>
+        <WhoPicker kids={f.kids} people={f.people} onKids={set('kids')} onPeople={set('people')} />
       </View>
       <View style={{ gap: 6 }}>
         <T v="label">Tipo</T>
         <Row gap={6} wrap>{TAGS.map((x) => <Chip key={x} on={f.tag === x} onPress={() => set('tag')(x)}>{x}</Chip>)}</Row>
       </View>
-      <T v="small">Los cuidadores solo lo ven si cae en su turno y es del niño que cuidan.</T>
+      <T v="small">Un cuidador lo ve si cae en su turno y es de un niño que cuida, o si lo elegiste a él directamente.</T>
       <Btn kind="sun" onPress={save}>{editing ? 'Guardar cambios' : 'Guardar evento'}</Btn>
       {editing ? <Btn kind="ghost" onPress={remove}>Eliminar evento</Btn> : null}
     </Screen>
@@ -106,19 +139,19 @@ export function TaskEditor({ id, onDone }) {
   const { S, update } = useStore();
   const { closeFull, toast } = useUI();
   const orig = id != null ? S.tasks.find((t) => t.id === id) : null;
-  const people = MEMBERS.map((m) => m.key);
   const [f, setF] = useState(() => (orig
-    ? { t: orig.t, who: orig.who, due: orig.due || null }
-    : { t: '', who: (MEMBERS.find((m) => m.role === 'caregiver') || MEMBERS[0] || { key: '' }).key, due: null }));
+    ? { t: orig.t, whos: taskWhos(orig), due: orig.due || null }
+    : { t: '', whos: [(MEMBERS.find((m) => m.role === 'caregiver') || MEMBERS[0] || { key: '' }).key].filter(Boolean), due: null }));
   const set = (x) => (v) => setF((o) => ({ ...o, [x]: v }));
   const save = () => {
     if (!f.t.trim()) { toast('Escribe qué hay que hacer'); return; }
+    if (!f.whos.length) { toast('Elige quién lo va a hacer'); return; }
     update((d) => {
-      if (orig) { const x = d.tasks.find((t) => t.id === id); x.t = f.t.trim(); x.who = f.who; if (f.due) x.due = f.due; else delete x.due; }
-      else d.tasks.unshift({ id: Date.now(), t: f.t.trim(), who: f.who, done: false, ...(f.due ? { due: f.due } : {}) });
+      if (orig) { const x = d.tasks.find((t) => t.id === id); x.t = f.t.trim(); x.who = f.whos[0]; x.whos = f.whos; if (f.due) x.due = f.due; else delete x.due; }
+      else d.tasks.unshift({ id: Date.now(), t: f.t.trim(), who: f.whos[0], whos: f.whos, done: false, ...(f.due ? { due: f.due } : {}) });
     });
     closeFull();
-    toast(orig ? 'Pendiente actualizado' : `Pendiente asignado a ${nameOf(f.who)}`);
+    toast(orig ? 'Pendiente actualizado' : `Pendiente asignado a ${f.whos.length > 1 ? `${f.whos.length} personas` : nameOf(f.whos[0])}`);
     onDone && onDone();
   };
   const remove = () => confirmAction('¿Eliminar este pendiente?', `«${orig.t}»`, 'Eliminar', () => {
@@ -131,9 +164,9 @@ export function TaskEditor({ id, onDone }) {
         <T v="label">Qué hay que hacer</T>
         <Field placeholder="P. ej. comprar leche" value={f.t} onChangeText={set('t')} autoFocus={!orig} />
       </View>
-      <View style={{ gap: 6 }}>
-        <T v="label">Quién lo hace</T>
-        <Row gap={6} wrap>{people.map((k) => <Chip key={k} on={f.who === k} onPress={() => set('who')(k)}>{nameOf(k)}</Chip>)}</Row>
+      <View style={{ gap: 8 }}>
+        <T v="label">Quién lo hace (puedes elegir varios)</T>
+        <WhoPicker withKids={false} kids={[]} people={f.whos} onKids={() => {}} onPeople={set('whos')} />
       </View>
       <View style={{ gap: 8 }}>
         <Row gap={6}>

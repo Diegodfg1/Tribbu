@@ -6,6 +6,7 @@ import { useAuth } from '../session';
 import { friendly } from '../supabase';
 import { F, useTheme } from '../theme';
 import { Btn, Card, Field, Row, Seg, T } from '../ui';
+import { Logo } from '../logo';
 
 function Frame({ children }) {
   const c = useTheme();
@@ -14,7 +15,7 @@ function Frame({ children }) {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: c.bg }}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingTop: insets.top + 28, paddingBottom: insets.bottom + 28, gap: 16 }}>
         <View style={{ gap: 4, marginBottom: 4 }}>
-          <Text style={{ fontFamily: F.display, fontSize: 40, color: c.ink }}>Tribbu</Text>
+          <Logo width={170} />
           <T color={c.inkSoft}>Apoyo para papás: actividades sin pantallas, agenda y cuidadores en un solo lugar.</T>
         </View>
         {children}

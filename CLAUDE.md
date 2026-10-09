@@ -41,6 +41,11 @@ Tres modos de datos (`S.cloud`, `S.blank`, ninguno = demostración). `isOwn(S)` 
 - `confirmAction()` (en `ui.js`) para confirmaciones; `Alert.alert` no funciona en web.
 - Cambiar `.env` exige `npx expo start --clear` (Metro guarda las variables en caché).
 
+Segunda tanda de mejoras (hecha):
+- `src/milestones.js` (176 hitos por edad, fuentes CDC 2022 y EDI de México; guía, no diagnóstico), `screens/Hitos.js` (estadísticas y marcado), `src/ideas.js` (actividad nueva a partir de un objeto de casa; plantillas, no IA), `src/stories.js` + `screens/Cuentos.js` (cuentos con plantillas: tema + protagonistas niños/papás/personaje), `screens/Puntos.js` (quehaceres y recompensas propios), `src/stats.js` + `screens/Resumen.js` (tablero en Hoy → Resumen, solo papás), `src/logo.js` (logotipo de la marca).
+- Eventos llevan `kids` y `people`; pendientes llevan `whos`. `S.mile[`${niño}|${id}`]` = fecha en que se logró. Nuevas listas: `S.chores`, `S.rewards`, `S.mymats`, `S.myacts`, `S.stories` (en la nube: ajustes `chores,rewards,mymats`, colecciones `myacts,stories`). Si ya corriste `schema.sql`, vuelve a correrlo.
+- Marca aplicada (colores, logotipo, ícono en `assets/`, sin emojis, color fijo por habilidad vía `skillColors`).
+
 Convenciones de datos (las pantallas dependen de ellas):
 - **Bitácora** (`S.feed`): cada registro lleva `d` (AAAA-MM-DD) y `t` (HH:MM) de **cuándo ocurrió**, no de cuándo se anotó. Créalos siempre con `mkFeed(S, {...})`; `feedDay(x)` deduce la fecha de registros antiguos. La pantalla Familia los muestra por día y por niño, ordenados con `feedSort`.
 - **Pendientes** (`S.tasks`): `{id, t, who, done, due?}`. `tasksSorted()` los ordena. Se ven en Hoy, Agenda y Pizarra; se crean y editan en `TaskEditor` (`editors.js`).

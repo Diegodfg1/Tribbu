@@ -42,7 +42,7 @@ create table if not exists public.kids (
 
 create table if not exists public.items (
   family_id  uuid not null references public.families(id) on delete cascade,
-  collection text not null check (collection in ('tasks','myrecs','feed','shop','docs','exp','myevents','evchat')),
+  collection text not null check (collection in ('tasks','myrecs','feed','shop','docs','exp','myevents','evchat','myacts','stories')),
   id         text not null,
   data       jsonb not null,
   updated_at timestamptz not null default now(),
@@ -77,7 +77,7 @@ create table if not exists public.invites (
 -- Claves de ajustes permitidas (se vuelve a crear para que el esquema se pueda correr otra vez).
 alter table public.settings drop constraint if exists settings_key_check;
 alter table public.settings add constraint settings_key_check
-  check (key in ('have','cal','locs','copa','camlog','pts','mile','summary','menu','favs','since'));
+  check (key in ('have','cal','locs','copa','camlog','pts','mile','summary','menu','favs','since','chores','rewards','mymats'));
 
 create index if not exists items_family_collection on public.items (family_id, collection);
 
@@ -109,15 +109,20 @@ language sql stable security definer set search_path = public as $$
           -- Bitácora: del niño que cuida, sin avisos de cámaras (parentsOnly)
           when 'feed'     then coalesce((d->>'parentsOnly')::boolean, false) = false
                                and d->>'kid' = m.kid_key
-          -- Pendientes: solo los suyos
-          when 'tasks'    then d->>'who' = m.person_key
-          -- Conversación de un evento: de eventos del niño que cuida
-          when 'evchat'   then d->>'kid' = m.kid_key
-          -- Agenda: solo eventos de su turno
-          when 'myevents' then d->>'kid' = m.kid_key
-                               and d->>'time' >= m.shift_from and d->>'time' < m.shift_to
-          -- Recetas de la familia
+          -- Pendientes: solo los suyos (puede haber varias personas asignadas: 'whos')
+          when 'tasks'    then d->>'who' = m.person_key or coalesce((d->'whos') ? m.person_key, false)
+          -- Conversación de un evento: de eventos de los niños que cuida o donde está asignado
+          when 'evchat'   then d->>'kid' = m.kid_key or coalesce((d->'kids') ? m.kid_key, false)
+                               or coalesce((d->'people') ? m.person_key, false)
+          -- Agenda: eventos de su turno de los niños que cuida (un evento puede ser de varios niños),
+          -- o eventos donde está asignado directamente
+          when 'myevents' then ((d->>'kid' = m.kid_key or coalesce((d->'kids') ? m.kid_key, false))
+                                and d->>'time' >= m.shift_from and d->>'time' < m.shift_to)
+                               or coalesce((d->'people') ? m.person_key, false)
+          -- Recetas, actividades propias y cuentos guardados de la familia
           when 'myrecs'   then true
+          when 'myacts'   then true
+          when 'stories'  then true
           -- Documentos: solo los compartidos (y del niño que cuida o de toda la familia)
           when 'docs'     then coalesce((d->>'shared')::boolean, false)
                                and (d->>'kid' is null or d->>'kid' = m.kid_key)
@@ -140,9 +145,10 @@ language sql stable security definer set search_path = public as $$
         when 'feed'   then d->>'who' = m.person_key and d->>'kid' = m.kid_key
                            and coalesce((d->>'parentsOnly')::boolean, false) = false
         -- Pendientes: solo los suyos (marcarlos como hechos)
-        when 'tasks'  then d->>'who' = m.person_key
+        when 'tasks'  then d->>'who' = m.person_key or coalesce((d->'whos') ? m.person_key, false)
         -- Escribir en la conversación de un evento
-        when 'evchat' then d->>'kid' = m.kid_key
+        when 'evchat' then d->>'kid' = m.kid_key or coalesce((d->'kids') ? m.kid_key, false)
+                           or coalesce((d->'people') ? m.person_key, false)
         else false
       end
   );
@@ -202,11 +208,12 @@ drop policy if exists items_delete on public.items;
 create policy items_delete on public.items for delete to authenticated
   using (public.is_parent(family_id));
 
--- Ajustes: los cuidadores ven "have" (materiales), "pts" (puntos), "menu", "favs" (actividades favoritas) y "since"
--- (mes en que empezaron las actividades); solo modifican "have" y "pts".
+-- Ajustes: los cuidadores ven "have" (materiales), "pts" (puntos), "menu", "favs" (actividades favoritas), "since"
+-- (mes en que empezaron las actividades), "chores" (quehaceres), "rewards" (recompensas) y "mymats" (materiales propios);
+-- solo modifican "have" y "pts".
 drop policy if exists settings_select on public.settings;
 create policy settings_select on public.settings for select to authenticated
-  using (public.is_parent(family_id) or (public.is_member(family_id) and key in ('have', 'pts', 'menu', 'favs', 'since')));
+  using (public.is_parent(family_id) or (public.is_member(family_id) and key in ('have', 'pts', 'menu', 'favs', 'since', 'chores', 'rewards', 'mymats')));
 drop policy if exists settings_insert on public.settings;
 create policy settings_insert on public.settings for insert to authenticated
   with check (public.is_parent(family_id) or (public.is_member(family_id) and key in ('have', 'pts')));

@@ -125,7 +125,7 @@ export function Check({ on, onPress, label, children }) {
     <Pressable onPress={onPress} accessibilityRole="checkbox" accessibilityState={{ checked: !!on }} accessibilityLabel={label}
       style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
       <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: on ? c.leaf : c.line, backgroundColor: on ? c.leaf : c.paper, alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
-        {on ? <Text style={{ color: c.paper, fontFamily: F.bold, fontSize: 13, lineHeight: 15 }}>✓</Text> : null}
+        {on ? <Text style={{ color: c.onAccent, fontFamily: F.bold, fontSize: 13, lineHeight: 15 }}>✓</Text> : null}
       </View>
       <View style={{ flex: 1 }}>{children}</View>
     </Pressable>
@@ -180,8 +180,8 @@ function ToastView({ msg }) {
   return (
     <View pointerEvents="none" accessibilityLiveRegion="polite" style={{ position: 'absolute', left: 0, right: 0, top: insets.top + 10, alignItems: 'center', zIndex: 50 }}>
       <View style={{ backgroundColor: c.leaf, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 10, maxWidth: '92%', flexDirection: 'row', gap: 8, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 6 }}>
-        <Text style={{ fontFamily: F.bold, fontSize: 15, color: c.paper }}>✓</Text>
-        <Text style={{ fontFamily: F.bold, fontSize: 14, color: c.paper, flexShrink: 1 }}>{msg}</Text>
+        <Text style={{ fontFamily: F.bold, fontSize: 15, color: c.onAccent }}>✓</Text>
+        <Text style={{ fontFamily: F.bold, fontSize: 14, color: c.onAccent, flexShrink: 1 }}>{msg}</Text>
       </View>
     </View>
   );

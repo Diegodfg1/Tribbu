@@ -10,7 +10,11 @@
       "bundleIdentifier": "app.tribbu.familia"
     },
     "android": {
-      "package": "app.tribbu.familia"
+      "package": "app.tribbu.familia",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1E2A4F"
+      }
     },
     "plugins": [
       [
@@ -19,6 +23,15 @@
           "photosPermission": "Tribbu usa tus fotos para adjuntar imágenes a recetas y documentos."
         }
       ]
-    ]
+    ],
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#141B33"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
   }
 }
