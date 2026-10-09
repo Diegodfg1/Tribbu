@@ -89,3 +89,17 @@ Limitaciones conocidas (decidir antes de publicar):
 - Cuentas de trabajo vinculadas: por defecto el otro papá solo ve "Ocupado"; los cuidadores nunca las ven.
 - La IA no da diagnósticos ni dosis; ante síntomas de alarma remite al pediatra o a emergencias.
 - Aviso de privacidad conforme a la ley mexicana de protección de datos antes de publicar.
+
+## Marca (aprobada para usar en la app)
+La identidad completa está en `docs/marca/`. Léela antes de tocar colores, textos o íconos.
+- `docs/marca/README.md`: tono de voz, uso de color, tipografía, logotipo e iconografía.
+- `docs/marca/tokens.json`: valores exactos de color (claro y oscuro), tipografía, espacios y radios.
+- `docs/marca/logos/`: logotipo, símbolo e ícono de app en SVG (texto convertido a trazos).
+
+Cambios que hay que aplicar en `src/theme.js` y en la app:
+- `leaf` pasa de #2F8F5B a **#26774A** y `sky` de #3E6FD8 a **#305FCC** (en tema claro), para que el texto cumpla contraste 4.5:1. El tema oscuro no cambia.
+- Agregar `onAccent` (#FFFFFF en claro, #0E1426 en oscuro) para texto sobre rellenos de baya, cielo, hoja o tinta.
+- Colores por habilidad: Motricidad = hoja, Lógica = cielo, Lenguaje = sol, Creatividad = baya, Calma = tinta.
+- Marca en el encabezado: usar el logotipo de `docs/marca/logos/` (con `react-native-svg`) en lugar del texto "Tribbu" con puntos.
+- Ícono de la app y pantalla de inicio (`app.json`): exportar `tribbu-icono-app.svg` a PNG de 1024 × 1024 en `assets/icon.png`; splash con fondo `noche` (#141B33) y el símbolo al centro.
+- Textos: seguir las reglas de tono de `docs/marca/README.md` (de tú, sin culpa, empezar por la acción, sin emojis en la app).
