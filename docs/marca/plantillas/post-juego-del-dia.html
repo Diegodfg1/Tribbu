@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="es">
+<head>
+<link rel="stylesheet" href="../tokens.css">
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+  body { margin: 0; background: var(--fondo); font-family: "Atkinson Hyperlegible", system-ui, sans-serif; }
+  .row { display: flex; gap: 16px; padding: 16px; }
+  .slide { width: 272px; aspect-ratio: 4 / 5; border-radius: var(--radio-grande); padding: 22px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; position: relative; overflow: hidden; }
+  .lbl { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  h1 { font-family: "Baloo 2", "Trebuchet MS", sans-serif; font-weight: 800; font-size: 38px; line-height: .95; margin: 0; letter-spacing: -.3px; }
+  h2 { font-family: "Baloo 2", "Trebuchet MS", sans-serif; font-weight: 800; font-size: 24px; line-height: 1; margin: 0; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: var(--radio-pastilla); }
+  .pills { display: flex; flex-wrap: wrap; gap: 5px; }
+  /* Portada */
+  .cover { background: var(--sol); color: var(--tinta-sol); }
+  .cover .mat { background: var(--tinta-sol); color: var(--sol); }
+  .cover .skill { background: var(--habilidad-motricidad); color: var(--sobre-acento); }
+  .cover svg { margin-top: auto; align-self: center; }
+  .cover .brand { position: absolute; right: 18px; top: 18px; width: 34px; }
+  /* Pasos */
+  .steps { background: var(--papel); color: var(--tinta); border: 1px solid var(--linea); }
+  .steps ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+  .steps li { display: grid; grid-template-columns: 24px 1fr; gap: 9px; font-size: 13px; line-height: 1.35; }
+  .steps li b { width: 24px; height: 24px; border-radius: 50%; background: var(--sol); color: var(--tinta-sol); display: grid; place-items: center; font-family: "Baloo 2", sans-serif; font-weight: 800; font-size: 13px; }
+  .steps .why { margin-top: auto; margin-right: 36px; background: var(--hoja-claro); color: var(--hoja); border-radius: var(--radio-chico); padding: 8px 10px; font-size: 12px; font-weight: 700; }
+  .steps .sym { position: absolute; right: 18px; bottom: 18px; width: 26px; }
+  /* Cierre */
+  .end { background: var(--noche); color: #FFFFFF; justify-content: center; text-align: left; }
+  .end p { margin: 0; font-size: 13px; line-height: 1.4; color: #C9D0E4; }
+  .end .cta { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+  .end .cta span { background: #F5C04A; color: #2A1E00; font-weight: 700; font-size: 13px; padding: 8px 12px; border-radius: var(--radio-chico); align-self: flex-start; }
+  .end .cta span.alt { background: transparent; color: #FFFFFF; border: 1.5px solid #3A4A7A; }
+  .end img { position: absolute; left: 22px; bottom: 20px; width: 92px; }
+</style>
+</head>
+<body>
+<div class="row">
+  <section class="slide cover" aria-label="Portada">
+    <span class="lbl">Juego del día</span>
+    <h1>Boliche de vasos</h1>
+    <div class="pills"><span class="pill skill">Motricidad</span><span class="pill mat">15 min</span><span class="pill mat">3 a 9 años</span></div>
+    <svg width="170" height="110" viewBox="0 0 170 110" aria-hidden="true">
+      <g fill="var(--papel)" stroke="var(--tinta-sol)" stroke-width="2.5" stroke-linejoin="round">
+        <path d="M70 80h24l-3 26H73z"/><path d="M98 80h24l-3 26h-18z"/><path d="M126 80h24l-3 26h-18z"/>
+        <path d="M84 50h24l-3 26H87z"/><path d="M112 50h24l-3 26h-18z"/><path d="M98 20h24l-3 26h-18z"/>
+      </g>
+      <circle cx="26" cy="94" r="14" fill="var(--baya)" stroke="var(--tinta-sol)" stroke-width="2.5"/>
+      <path d="M17 90q9 7 18 0" fill="none" stroke="var(--sobre-acento)" stroke-width="2"/>
+    </svg>
+    <img class="brand" src="../logos/tribbu-simbolo.svg" alt="Tribbu">
+  </section>
+  <section class="slide steps" aria-label="Pasos">
+    <img class="sym" src="../logos/tribbu-simbolo.svg" alt="">
+    <span class="lbl" style="color: var(--tinta-suave)">Necesitas: vasos y calcetines</span>
+    <h2>Así se juega</h2>
+    <ol>
+      <li><b>1</b><span>Arma una pirámide con 6 vasos.</span></li>
+      <li><b>2</b><span>Enrolla dos calcetines para hacer la pelota.</span></li>
+      <li><b>3</b><span>Tiren desde una línea de cinta.</span></li>
+      <li><b>4</b><span>Cuenten cuántos vasos cayeron.</span></li>
+    </ol>
+    <span class="why">Practica puntería y sumas sin darse cuenta.</span>
+  </section>
+  <section class="slide end" aria-label="Cierre">
+    <h2>¿Lo jugaron?</h2>
+    <p>Guárdalo para la próxima tarde lluviosa y encuentra más juegos con lo que hay en casa en Tribbu.</p>
+    <div class="cta"><span>Mándaselo a la abuela</span><span class="alt">Link en el perfil</span></div>
+    <img src="../logos/tribbu-logo-blanco.svg" alt="Tribbu">
+  </section>
+</div>
+</body>
+</html>

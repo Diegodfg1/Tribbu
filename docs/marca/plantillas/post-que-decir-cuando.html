@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+<link rel="stylesheet" href="../tokens.css">
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+  body { margin: 0; background: var(--fondo); font-family: "Atkinson Hyperlegible", system-ui, sans-serif; color: var(--tinta); }
+  .row { display: flex; gap: 16px; padding: 16px; }
+  .slide { width: 272px; aspect-ratio: 4 / 5; border-radius: var(--radio-grande); padding: 22px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; position: relative; overflow: hidden; background: var(--papel); border: 1px solid var(--linea); }
+  .lbl { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--tinta-suave); }
+  h1 { font-family: "Baloo 2", "Trebuchet MS", sans-serif; font-weight: 800; font-size: 36px; line-height: .95; margin: 0; }
+  h1 em { font-style: normal; color: var(--cielo); }
+  .bub { border-radius: 16px; padding: 10px 12px; font-size: 14px; line-height: 1.35; max-width: 88%; }
+  .bub small { display: block; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 3px; }
+  .no { background: var(--papel-2); color: var(--tinta-suave); text-decoration: line-through; text-decoration-color: var(--baya); }
+  .no small { text-decoration: none; color: var(--baya); }
+  .yes { background: var(--cielo-claro); color: var(--tinta); align-self: flex-end; }
+  .yes small { color: var(--cielo); }
+  .sym { position: absolute; right: 18px; bottom: 18px; width: 30px; }
+  .moon { margin-top: auto; }
+  .why { font-size: 13px; line-height: 1.45; margin: 0; }
+  .note { margin-top: auto; font-size: 11px; color: var(--tinta-suave); }
+</style>
+</head>
+<body>
+<div class="row">
+  <section class="slide" aria-label="Portada">
+    <span class="lbl">Qué decir cuando…</span>
+    <h1>no quiere <em>dormir</em></h1>
+    <svg class="moon" width="120" height="96" viewBox="0 0 120 96" aria-hidden="true">
+      <path d="M62 10a38 38 0 1 0 40 52A30 30 0 0 1 62 10z" fill="var(--sol)" stroke="var(--tinta)" stroke-width="2.5" stroke-linejoin="round"/>
+      <circle cx="104" cy="20" r="4" fill="var(--cielo)"/><circle cx="92" cy="38" r="2.5" fill="var(--baya)"/>
+    </svg>
+    <img class="sym" src="../logos/tribbu-simbolo.svg" alt="Tribbu">
+  </section>
+  <section class="slide" aria-label="Guion">
+    <span class="lbl">Cambia esto</span>
+    <div class="bub no"><small>En lugar de</small>¡Ya duérmete, es tardísimo!</div>
+    <div class="bub yes"><small>Prueba</small>Es hora de descansar. Me quedo cinco minutos contigo y luego vengo a ver cómo estás.</div>
+    <span class="note">Lámina 2 de 6</span>
+  </section>
+  <section class="slide" aria-label="Por qué funciona">
+    <span class="lbl">Por qué funciona</span>
+    <p class="why">Le das un límite claro y, al mismo tiempo, la seguridad de que no se queda solo. Cuando sabe que vas a regresar, es más fácil que se relaje.</p>
+    <p class="why" style="color: var(--tinta-suave)">Repite la misma frase cada noche. La rutina hace la mitad del trabajo.</p>
+    <span class="note">Revisado por psicóloga infantil · No sustituye la consulta con su pediatra.</span>
+  </section>
+</div>
+</body>
+</html>

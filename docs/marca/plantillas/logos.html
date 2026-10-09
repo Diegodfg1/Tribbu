@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+<head>
+<link rel="stylesheet" href="../tokens.css">
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+  body { margin: 0; background: var(--fondo); color: var(--tinta); font-family: "Atkinson Hyperlegible", system-ui, sans-serif; }
+  .grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px; padding: 16px; }
+  .tile { border-radius: var(--radio-medio); display: flex; flex-direction: column; gap: 10px; padding: 24px; justify-content: space-between; min-height: 150px; }
+  .tile img { display: block; }
+  .white { background: #FFFFFF; border: 1px solid var(--linea); }
+  .ink { background: #1E2A4F; }
+  .sun { background: #F2B632; }
+  .cap { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .white .cap { color: #56607E; } .ink .cap { color: #C9D0E4; } .sun .cap { color: #3A2A00; }
+  .wide { grid-column: span 2; }
+  .icons { display: flex; align-items: flex-end; gap: 18px; }
+</style>
+</head>
+<body>
+<div class="grid">
+  <div class="tile white wide"><img src="../logos/tribbu-logo.svg" alt="Logotipo principal de Tribbu" style="width: 70%"><span class="cap">Principal · sobre papel o fondo claro</span></div>
+  <div class="tile white"><img src="../logos/tribbu-simbolo.svg" alt="Símbolo de Tribbu" style="width: 60%"><span class="cap">Símbolo</span></div>
+  <div class="tile ink wide"><img src="../logos/tribbu-logo-blanco.svg" alt="Logotipo blanco de Tribbu" style="width: 70%"><span class="cap">Blanco · sobre tinta o fotos oscuras</span></div>
+  <div class="tile sun"><img src="../logos/tribbu-logo-una-tinta.svg" alt="Logotipo de Tribbu a una tinta" style="width: 92%"><span class="cap">Una tinta · sobre sol</span></div>
+  <div class="tile white" style="grid-column: span 3;">
+    <div class="icons">
+      <img src="../logos/tribbu-icono-app.svg" alt="Ícono de la app a 120 px" style="width: 120px; border-radius: 27px">
+      <img src="../logos/tribbu-icono-app.svg" alt="Ícono de la app a 60 px" style="width: 60px; border-radius: 13px">
+      <img src="../logos/tribbu-icono-app.svg" alt="Ícono de la app a 40 px" style="width: 40px; border-radius: 9px">
+    </div>
+    <span class="cap">Ícono de app · las tiendas aplican las esquinas</span>
+  </div>
+</div>
+</body>
+</html>
